@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
     Sheet,
     SheetContent,
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { DetailFields } from "./DetailFields";
 import { NotesPanel } from "./NotesPanel";
 import { ActivityTimeline } from "./ActivityTimeline";
+import { createClient } from "@/lib/supabase/client";
 
 type Company = {
     id: string;
@@ -34,16 +35,35 @@ interface CompanySideSheetProps {
     company: Company | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onUpdate?: () => void;
 }
 
-export function CompanySideSheet({ company, open, onOpenChange }: CompanySideSheetProps) {
+export function CompanySideSheet({ company, open, onOpenChange, onUpdate }: CompanySideSheetProps) {
     const [activeTab, setActiveTab] = useState("details");
+    const [data, setData] = useState<Company | null>(company);
 
     useEffect(() => {
-        if (company?.id) setActiveTab("details");
-    }, [company?.id]);
+        setData(company);
+    }, [company]);
 
-    if (!company) return null;
+    useEffect(() => {
+        if (data?.id) setActiveTab("details");
+    }, [data?.id]);
+
+    const handleSave = useCallback(async (column: string, value: string | number | null) => {
+        if (!data) return;
+        const supabase = createClient();
+        const { error } = await supabase
+            .from("companies")
+            .update({ [column]: value, updated_at: new Date().toISOString() })
+            .eq("id", data.id);
+        if (!error) {
+            setData((prev) => prev ? { ...prev, [column]: value } : prev);
+            onUpdate?.();
+        }
+    }, [data, onUpdate]);
+
+    if (!data) return null;
 
     const tabs = [
         { id: "details", label: "Details" },
@@ -51,7 +71,7 @@ export function CompanySideSheet({ company, open, onOpenChange }: CompanySideShe
         { id: "activity", label: "Activity" },
     ];
 
-    const location = [company.city, company.state].filter(Boolean).join(", ");
+    const location = [data.city, data.state].filter(Boolean).join(", ");
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -60,21 +80,21 @@ export function CompanySideSheet({ company, open, onOpenChange }: CompanySideShe
                 <div className="p-6 pb-4 border-b border-border">
                     <SheetHeader className="flex flex-row items-start gap-4 space-y-0 text-left">
                         <div className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center font-bold text-xl text-foreground ring-1 ring-border/50 shrink-0 mt-0.5">
-                            {company.name.charAt(0).toUpperCase()}
+                            {data.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0 pt-1">
                             <div className="flex items-center gap-2.5">
-                                <SheetTitle className="text-xl font-bold truncate">{company.name}</SheetTitle>
+                                <SheetTitle className="text-xl font-bold truncate">{data.name}</SheetTitle>
                                 <Badge variant="outline" className="shrink-0 text-[10px] font-bold uppercase tracking-wider">
                                     <span className={cn(
                                         "w-1.5 h-1.5 rounded-full mr-1.5",
-                                        company.status === "active" ? "bg-emerald-500" : "bg-amber-500"
+                                        data.status === "active" ? "bg-emerald-500" : "bg-amber-500"
                                     )} />
-                                    {company.status}
+                                    {data.status}
                                 </Badge>
                             </div>
                             <SheetDescription className="text-sm text-muted-foreground mt-1 truncate">
-                                {company.industry || location || "Company"}
+                                {data.industry || location || "Company"}
                             </SheetDescription>
                         </div>
                     </SheetHeader>
@@ -108,27 +128,45 @@ export function CompanySideSheet({ company, open, onOpenChange }: CompanySideShe
                         {activeTab === "details" && (
                             <div className="space-y-4">
                                 <div className="rounded-xl border border-border bg-card p-5">
-                                    <DetailFields fields={[
-                                        { label: "Industry", value: company.industry },
-                                        { label: "Email", value: company.email },
-                                        { label: "Phone", value: company.phone },
-                                        { label: "Website", value: company.website },
-                                        { label: "Location", value: location || null },
-                                        { label: "Address", value: company.address },
-                                        { label: "Postcode", value: company.postcode },
-                                        { label: "Status", value: company.status ? company.status.charAt(0).toUpperCase() + company.status.slice(1) : null },
-                                        { label: "Created", value: new Date(company.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) },
-                                    ]} />
+                                    <DetailFields
+                                        onSave={handleSave}
+                                        fields={[
+                                            { label: "Name", value: data.name, dbColumn: "name", type: "text", rawValue: data.name },
+                                            { label: "Industry", value: data.industry, dbColumn: "industry", type: "text", rawValue: data.industry },
+                                            { label: "Email", value: data.email, dbColumn: "email", type: "text", rawValue: data.email },
+                                            { label: "Phone", value: data.phone, dbColumn: "phone", type: "text", rawValue: data.phone },
+                                            { label: "Website", value: data.website, dbColumn: "website", type: "text", rawValue: data.website },
+                                            { label: "Address", value: data.address, dbColumn: "address", type: "text", rawValue: data.address },
+                                            { label: "City", value: data.city, dbColumn: "city", type: "text", rawValue: data.city },
+                                            { label: "State", value: data.state, dbColumn: "state", type: "text", rawValue: data.state },
+                                            { label: "Postcode", value: data.postcode, dbColumn: "postcode", type: "text", rawValue: data.postcode },
+                                            {
+                                                label: "Status",
+                                                value: data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : null,
+                                                dbColumn: "status",
+                                                type: "select",
+                                                rawValue: data.status,
+                                                options: [
+                                                    { value: "active", label: "Active" },
+                                                    { value: "inactive", label: "Inactive" },
+                                                ],
+                                            },
+                                            {
+                                                label: "Created",
+                                                value: new Date(data.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+                                            },
+                                        ]}
+                                    />
                                 </div>
                             </div>
                         )}
 
                         {activeTab === "notes" && (
-                            <NotesPanel entityType="company" entityId={company.id} />
+                            <NotesPanel entityType="company" entityId={data.id} />
                         )}
 
                         {activeTab === "activity" && (
-                            <ActivityTimeline entityType="company" entityId={company.id} />
+                            <ActivityTimeline entityType="company" entityId={data.id} />
                         )}
                     </div>
                 </div>

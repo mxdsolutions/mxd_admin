@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
     Sheet,
     SheetContent,
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { DetailFields, LinkedEntityCard } from "./DetailFields";
 import { NotesPanel } from "./NotesPanel";
 import { ActivityTimeline } from "./ActivityTimeline";
+import { createClient } from "@/lib/supabase/client";
 
 type Contact = {
     id: string;
@@ -30,19 +31,38 @@ interface ContactSideSheetProps {
     contact: Contact | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onUpdate?: () => void;
 }
 
-export function ContactSideSheet({ contact, open, onOpenChange }: ContactSideSheetProps) {
+export function ContactSideSheet({ contact, open, onOpenChange, onUpdate }: ContactSideSheetProps) {
     const [activeTab, setActiveTab] = useState("details");
+    const [data, setData] = useState<Contact | null>(contact);
 
     useEffect(() => {
-        if (contact?.id) setActiveTab("details");
-    }, [contact?.id]);
+        setData(contact);
+    }, [contact]);
 
-    if (!contact) return null;
+    useEffect(() => {
+        if (data?.id) setActiveTab("details");
+    }, [data?.id]);
 
-    const initials = `${contact.first_name[0] || ""}${contact.last_name[0] || ""}`.toUpperCase();
-    const fullName = `${contact.first_name} ${contact.last_name}`;
+    const handleSave = useCallback(async (column: string, value: string | number | null) => {
+        if (!data) return;
+        const supabase = createClient();
+        const { error } = await supabase
+            .from("contacts")
+            .update({ [column]: value, updated_at: new Date().toISOString() })
+            .eq("id", data.id);
+        if (!error) {
+            setData((prev) => prev ? { ...prev, [column]: value } : prev);
+            onUpdate?.();
+        }
+    }, [data, onUpdate]);
+
+    if (!data) return null;
+
+    const initials = `${data.first_name[0] || ""}${data.last_name[0] || ""}`.toUpperCase();
+    const fullName = `${data.first_name} ${data.last_name}`;
     const tabs = [
         { id: "details", label: "Details" },
         { id: "notes", label: "Notes" },
@@ -64,13 +84,13 @@ export function ContactSideSheet({ contact, open, onOpenChange }: ContactSideShe
                                 <Badge variant="outline" className="shrink-0 text-[10px] font-bold uppercase tracking-wider">
                                     <span className={cn(
                                         "w-1.5 h-1.5 rounded-full mr-1.5",
-                                        contact.status === "active" ? "bg-emerald-500" : "bg-amber-500"
+                                        data.status === "active" ? "bg-emerald-500" : "bg-amber-500"
                                     )} />
-                                    {contact.status}
+                                    {data.status}
                                 </Badge>
                             </div>
                             <SheetDescription className="text-sm text-muted-foreground mt-1 truncate">
-                                {contact.job_title || contact.email || "Contact"}
+                                {data.job_title || data.email || "Contact"}
                             </SheetDescription>
                         </div>
                     </SheetHeader>
@@ -104,22 +124,40 @@ export function ContactSideSheet({ contact, open, onOpenChange }: ContactSideShe
                         {activeTab === "details" && (
                             <div className="space-y-4">
                                 <div className="rounded-xl border border-border bg-card p-5">
-                                    <DetailFields fields={[
-                                        { label: "Email", value: contact.email },
-                                        { label: "Phone", value: contact.phone },
-                                        { label: "Job Title", value: contact.job_title },
-                                        { label: "Status", value: contact.status ? contact.status.charAt(0).toUpperCase() + contact.status.slice(1) : null },
-                                        { label: "Created", value: new Date(contact.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) },
-                                    ]} />
+                                    <DetailFields
+                                        onSave={handleSave}
+                                        fields={[
+                                            { label: "First Name", value: data.first_name, dbColumn: "first_name", type: "text", rawValue: data.first_name },
+                                            { label: "Last Name", value: data.last_name, dbColumn: "last_name", type: "text", rawValue: data.last_name },
+                                            { label: "Email", value: data.email, dbColumn: "email", type: "text", rawValue: data.email },
+                                            { label: "Phone", value: data.phone, dbColumn: "phone", type: "text", rawValue: data.phone },
+                                            { label: "Job Title", value: data.job_title, dbColumn: "job_title", type: "text", rawValue: data.job_title },
+                                            {
+                                                label: "Status",
+                                                value: data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : null,
+                                                dbColumn: "status",
+                                                type: "select",
+                                                rawValue: data.status,
+                                                options: [
+                                                    { value: "active", label: "Active" },
+                                                    { value: "inactive", label: "Inactive" },
+                                                ],
+                                            },
+                                            {
+                                                label: "Created",
+                                                value: new Date(data.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+                                            },
+                                        ]}
+                                    />
                                 </div>
 
-                                {contact.company && (
+                                {data.company && (
                                     <LinkedEntityCard
                                         label="Company"
-                                        title={contact.company.name}
+                                        title={data.company.name}
                                         icon={
                                             <span className="text-[10px] font-bold text-muted-foreground">
-                                                {contact.company.name[0]}
+                                                {data.company.name[0]}
                                             </span>
                                         }
                                     />
@@ -128,11 +166,11 @@ export function ContactSideSheet({ contact, open, onOpenChange }: ContactSideShe
                         )}
 
                         {activeTab === "notes" && (
-                            <NotesPanel entityType="contact" entityId={contact.id} />
+                            <NotesPanel entityType="contact" entityId={data.id} />
                         )}
 
                         {activeTab === "activity" && (
-                            <ActivityTimeline entityType="contact" entityId={contact.id} />
+                            <ActivityTimeline entityType="contact" entityId={data.id} />
                         )}
                     </div>
                 </div>

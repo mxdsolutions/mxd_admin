@@ -7,15 +7,38 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
-  const next = searchParams.get('next') ?? '/dashboard'
+
+  // Supabase's PKCE redirect chain can strip custom query params from redirectTo,
+  // so we fall back to a cookie set by the page that initiated the auth flow.
+  // For invite links, always redirect to onboarding.
+  const next = searchParams.get('next')
+    ?? request.cookies.get('auth_redirect')?.value
+    ?? (type === 'invite' ? '/onboarding' : '/dashboard')
 
   const supabase = await createClient()
+
+  const buildRedirect = (destination: string) => {
+    const forwardedHost = request.headers.get('x-forwarded-host')
+    const isLocalEnv = process.env.NODE_ENV === 'development'
+    let baseUrl: string
+    if (isLocalEnv) {
+      baseUrl = origin
+    } else if (forwardedHost) {
+      baseUrl = `https://${forwardedHost}`
+    } else {
+      baseUrl = origin
+    }
+    const response = NextResponse.redirect(`${baseUrl}${destination}`)
+    // Clear the auth_redirect cookie after use
+    response.cookies.delete('auth_redirect')
+    return response
+  }
 
   // Handle token_hash flow (email OTP / recovery links)
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash })
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      return buildRedirect(next)
     }
   }
 
@@ -23,17 +46,9 @@ export async function GET(request: NextRequest) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      const forwardedHost = request.headers.get('x-forwarded-host')
-      const isLocalEnv = process.env.NODE_ENV === 'development'
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
-      } else {
-        return NextResponse.redirect(`${origin}${next}`)
-      }
+      return buildRedirect(next)
     }
   }
 
-  return NextResponse.redirect(`${origin}/?error=auth-callback-failed`)
+  return buildRedirect('/?error=auth-callback-failed')
 }

@@ -1,12 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/Logo";
-import { cn } from "@/lib/utils";
+import { cn, timeAgo } from "@/lib/utils";
 import { signOut } from "@/app/actions/auth";
 import { AnimatePresence, motion } from "framer-motion";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet";
 
 import {
     ArrowRightStartOnRectangleIcon,
@@ -25,6 +31,7 @@ import {
     CubeIcon,
     EnvelopeIcon,
     LinkIcon,
+    BellIcon,
 } from "@heroicons/react/24/outline";
 
 type Workspace = "crm" | "operations" | "settings";
@@ -35,6 +42,7 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
+    const router = useRouter();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [activeWorkspace, setActiveWorkspace] = useState<Workspace>("operations");
     const navRef = useRef<HTMLElement>(null);
@@ -55,7 +63,6 @@ export default function DashboardLayout({
         { href: "/dashboard/operations/jobs", label: "Jobs", icon: BriefcaseIcon },
         { href: "/dashboard/operations/products", label: "Products", icon: CubeIcon },
         { href: "/dashboard/operations/content", label: "Content", icon: DocumentTextIcon },
-        { href: "/dashboard/operations/users", label: "Users", icon: UsersIcon },
     ];
 
     const crmItems = [
@@ -68,19 +75,28 @@ export default function DashboardLayout({
     ];
 
     const settingsItems = [
-        { href: "/dashboard/settings/settings", label: "Settings", icon: CogIcon },
         { href: "/dashboard/settings/users", label: "Users", icon: UsersIcon },
         { href: "/dashboard/settings/integrations", label: "Integrations", icon: LinkIcon },
     ];
 
-    const getActiveItems = () => {
-        switch (activeWorkspace) {
+    const getItemsForWorkspace = (ws: Workspace) => {
+        switch (ws) {
             case "crm":
                 return crmItems;
             case "settings":
                 return settingsItems;
             default:
                 return operationsItems;
+        }
+    };
+
+    const getActiveItems = () => getItemsForWorkspace(activeWorkspace);
+
+    const switchWorkspace = (ws: Workspace) => {
+        setActiveWorkspace(ws);
+        const items = getItemsForWorkspace(ws);
+        if (items.length > 0) {
+            router.push(items[0].href);
         }
     };
 
@@ -96,6 +112,62 @@ export default function DashboardLayout({
 
     const currentWorkspace = getWorkspaceForPath();
     const activeItems = getActiveItems();
+
+    // Notifications state
+    type Notification = {
+        id: string;
+        type: string;
+        title: string;
+        body: string | null;
+        entity_type: string | null;
+        entity_id: string | null;
+        read: boolean;
+        created_at: string;
+        creator?: { id: string; full_name: string | null; email: string | null } | null;
+    };
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [notifOpen, setNotifOpen] = useState(false);
+
+    const fetchNotifications = useCallback(async () => {
+        try {
+            const res = await fetch("/api/notifications");
+            if (!res.ok) return;
+            const data = await res.json();
+            setNotifications(data.notifications || []);
+            setUnreadCount(data.unread_count || 0);
+        } catch { /* silent */ }
+    }, []);
+
+    useEffect(() => {
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 30000);
+        return () => clearInterval(interval);
+    }, [fetchNotifications]);
+
+    const markAllRead = async () => {
+        try {
+            await fetch("/api/notifications/read", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mark_all: true }),
+            });
+            setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+            setUnreadCount(0);
+        } catch { /* silent */ }
+    };
+
+    const markOneRead = async (id: string) => {
+        try {
+            await fetch("/api/notifications/read", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ notification_ids: [id] }),
+            });
+            setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+        } catch { /* silent */ }
+    };
 
     return (
         <div className="min-h-screen bg-background flex">
@@ -115,7 +187,7 @@ export default function DashboardLayout({
                         return (
                             <button
                                 key={ws.id}
-                                onClick={() => setActiveWorkspace(ws.id)}
+                                onClick={() => switchWorkspace(ws.id)}
                                 title={ws.label}
                                 className={cn(
                                     "p-3 rounded-xl transition-all duration-200",
@@ -132,6 +204,19 @@ export default function DashboardLayout({
 
                 {/* Bottom section */}
                 <div className="pb-4 flex flex-col items-center gap-3">
+                    <button
+                        title="Notifications"
+                        onClick={() => { setNotifOpen(true); fetchNotifications(); }}
+                        className="p-3 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors relative"
+                    >
+                        <BellIcon className="w-5 h-5" />
+                        {unreadCount > 0 && (
+                            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-black" />
+                        )}
+                    </button>
+                    <Link href="/dashboard/crm/emails" title="Emails" className="p-3 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+                        <EnvelopeIcon className="w-5 h-5" />
+                    </Link>
                     <Link href="/dashboard/settings/settings" title="Profile" className="p-3 rounded-xl hover:bg-white/10 transition-colors">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-100 to-blue-100 flex items-center justify-center">
                             <span className="text-xs font-bold text-violet-600">DJ</span>
@@ -175,16 +260,7 @@ export default function DashboardLayout({
                 </nav>
 
                 {/* Bottom section */}
-                <div className="p-3 border-t border-border space-y-1">
-                    <Link href="/dashboard/settings/settings" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/40 transition-colors cursor-pointer">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-100 to-blue-100 flex items-center justify-center ring-2 ring-border">
-                            <span className="text-xs font-bold text-violet-600">DJ</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">Dylan J.</p>
-                            <p className="text-[11px] text-muted-foreground truncate">dylan@example.com</p>
-                        </div>
-                    </Link>
+                <div className="p-3 border-t border-border">
                     <button onClick={() => signOut()} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors w-full">
                         <ArrowRightStartOnRectangleIcon className="w-[18px] h-[18px]" />
                         Sign out
@@ -234,7 +310,7 @@ export default function DashboardLayout({
                                             <button
                                                 key={ws.id}
                                                 onClick={() => {
-                                                    setActiveWorkspace(ws.id);
+                                                    switchWorkspace(ws.id);
                                                     setMobileMenuOpen(false);
                                                 }}
                                                 className={cn(
@@ -319,6 +395,63 @@ export default function DashboardLayout({
                     {children}
                 </div>
             </main>
+
+            {/* Notifications side sheet */}
+            <Sheet open={notifOpen} onOpenChange={setNotifOpen}>
+                <SheetContent side="left" className="w-full sm:max-w-sm flex flex-col p-0 border-r border-border bg-background">
+                    <SheetHeader className="px-5 py-4 border-b border-border flex flex-row items-center justify-between space-y-0">
+                        <SheetTitle className="text-base font-semibold">Notifications</SheetTitle>
+                        {unreadCount > 0 && (
+                            <button
+                                onClick={markAllRead}
+                                className="text-xs font-medium text-primary hover:underline"
+                            >
+                                Mark all read
+                            </button>
+                        )}
+                    </SheetHeader>
+
+                    <div className="flex-1 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-16">
+                                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                                    <BellIcon className="w-6 h-6 text-muted-foreground/40" />
+                                </div>
+                                <p className="text-sm text-muted-foreground">No notifications</p>
+                                <p className="text-xs text-muted-foreground/50 mt-1">You&apos;re all caught up</p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-border/40">
+                                {notifications.map((n) => (
+                                    <button
+                                        key={n.id}
+                                        onClick={() => { if (!n.read) markOneRead(n.id); }}
+                                        className={cn(
+                                            "w-full text-left px-5 py-3.5 transition-colors hover:bg-muted/50",
+                                            !n.read && "bg-primary/5"
+                                        )}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            {!n.read ? (
+                                                <span className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1.5" />
+                                            ) : (
+                                                <span className="w-2 shrink-0" />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-foreground">{n.title}</p>
+                                                {n.body && (
+                                                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>
+                                                )}
+                                                <p className="text-[11px] text-muted-foreground/50 mt-1.5">{timeAgo(n.created_at)}</p>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
     Sheet,
     SheetContent,
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { DetailFields, LinkedEntityCard } from "./DetailFields";
 import { NotesPanel } from "./NotesPanel";
 import { ActivityTimeline } from "./ActivityTimeline";
+import { createClient } from "@/lib/supabase/client";
 
 type Lead = {
     id: string;
@@ -32,6 +33,7 @@ interface LeadSideSheetProps {
     lead: Lead | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onUpdate?: () => void;
 }
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -48,17 +50,43 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
     high: { label: "High", color: "bg-rose-500" },
 };
 
-export function LeadSideSheet({ lead, open, onOpenChange }: LeadSideSheetProps) {
+export function LeadSideSheet({ lead, open, onOpenChange, onUpdate }: LeadSideSheetProps) {
     const [activeTab, setActiveTab] = useState("details");
+    const [data, setData] = useState<Lead | null>(lead);
+    const [users, setUsers] = useState<{ value: string; label: string }[]>([]);
 
     useEffect(() => {
-        if (lead?.id) setActiveTab("details");
-    }, [lead?.id]);
+        setData(lead);
+    }, [lead]);
 
-    if (!lead) return null;
+    useEffect(() => {
+        if (data?.id) setActiveTab("details");
+    }, [data?.id]);
 
-    const status = statusConfig[lead.status] || statusConfig.new;
-    const priority = priorityConfig[lead.priority] || priorityConfig.medium;
+    useEffect(() => {
+        const supabase = createClient();
+        supabase.from("profiles").select("id, full_name, email").then(({ data: profiles }) => {
+            if (profiles) setUsers(profiles.map((p) => ({ value: p.id, label: p.full_name || p.email || p.id })));
+        });
+    }, []);
+
+    const handleSave = useCallback(async (column: string, value: string | number | null) => {
+        if (!data) return;
+        const supabase = createClient();
+        const { error } = await supabase
+            .from("leads")
+            .update({ [column]: value, updated_at: new Date().toISOString() })
+            .eq("id", data.id);
+        if (!error) {
+            setData((prev) => prev ? { ...prev, [column]: value } : prev);
+            onUpdate?.();
+        }
+    }, [data, onUpdate]);
+
+    if (!data) return null;
+
+    const status = statusConfig[data.status] || statusConfig.new;
+    const priority = priorityConfig[data.priority] || priorityConfig.medium;
     const tabs = [
         { id: "details", label: "Details" },
         { id: "notes", label: "Notes" },
@@ -78,14 +106,14 @@ export function LeadSideSheet({ lead, open, onOpenChange }: LeadSideSheetProps) 
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5">
                             <div className="flex items-center gap-2.5">
-                                <SheetTitle className="text-lg font-bold truncate">{lead.title}</SheetTitle>
+                                <SheetTitle className="text-lg font-bold truncate">{data.title}</SheetTitle>
                                 <Badge variant="outline" className="shrink-0 text-[10px] font-bold uppercase tracking-wider">
                                     <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", status.color)} />
                                     {status.label}
                                 </Badge>
                             </div>
                             <SheetDescription className="text-sm text-muted-foreground mt-1">
-                                {lead.company?.name || "No company"} {lead.estimated_value ? `· $${lead.estimated_value.toLocaleString()}` : ""}
+                                {data.company?.name || "No company"} {data.estimated_value ? `· $${data.estimated_value.toLocaleString()}` : ""}
                             </SheetDescription>
                         </div>
                     </SheetHeader>
@@ -119,47 +147,110 @@ export function LeadSideSheet({ lead, open, onOpenChange }: LeadSideSheetProps) 
                         {activeTab === "details" && (
                             <div className="space-y-4">
                                 <div className="rounded-xl border border-border bg-card p-5">
-                                    <DetailFields fields={[
-                                        { label: "Status", value: status.label },
-                                        { label: "Priority", value: (
-                                            <span className="flex items-center gap-1.5">
-                                                <span className={cn("w-1.5 h-1.5 rounded-full", priority.color)} />
-                                                {priority.label}
-                                            </span>
-                                        )},
-                                        { label: "Estimated Value", value: lead.estimated_value ? `$${lead.estimated_value.toLocaleString()}` : null },
-                                        { label: "Source", value: lead.source ? lead.source.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : null },
-                                        { label: "Assigned To", value: lead.assignee?.full_name },
-                                        { label: "Created", value: new Date(lead.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) },
-                                    ]} />
+                                    <DetailFields
+                                        onSave={handleSave}
+                                        fields={[
+                                            {
+                                                label: "Title",
+                                                value: data.title,
+                                                dbColumn: "title",
+                                                type: "text",
+                                                rawValue: data.title,
+                                            },
+                                            {
+                                                label: "Status",
+                                                value: status.label,
+                                                dbColumn: "status",
+                                                type: "select",
+                                                rawValue: data.status,
+                                                options: Object.entries(statusConfig).map(([k, v]) => ({ value: k, label: v.label })),
+                                            },
+                                            {
+                                                label: "Priority",
+                                                value: (
+                                                    <span className="flex items-center gap-1.5">
+                                                        <span className={cn("w-1.5 h-1.5 rounded-full", priority.color)} />
+                                                        {priority.label}
+                                                    </span>
+                                                ),
+                                                dbColumn: "priority",
+                                                type: "select",
+                                                rawValue: data.priority,
+                                                options: Object.entries(priorityConfig).map(([k, v]) => ({ value: k, label: v.label })),
+                                            },
+                                            {
+                                                label: "Estimated Value",
+                                                value: data.estimated_value ? `$${data.estimated_value.toLocaleString()}` : null,
+                                                dbColumn: "estimated_value",
+                                                type: "number",
+                                                rawValue: data.estimated_value,
+                                            },
+                                            {
+                                                label: "Source",
+                                                value: data.source ? data.source.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : null,
+                                                dbColumn: "source",
+                                                type: "select",
+                                                rawValue: data.source,
+                                                options: [
+                                                    { value: "website", label: "Website" },
+                                                    { value: "referral", label: "Referral" },
+                                                    { value: "cold_call", label: "Cold Call" },
+                                                    { value: "social_media", label: "Social Media" },
+                                                    { value: "email", label: "Email" },
+                                                    { value: "other", label: "Other" },
+                                                ],
+                                            },
+                                            {
+                                                label: "Assigned To",
+                                                value: data.assignee?.full_name,
+                                                dbColumn: "assigned_to",
+                                                type: "select",
+                                                rawValue: data.assignee?.id ?? null,
+                                                options: users,
+                                            },
+                                            {
+                                                label: "Created",
+                                                value: new Date(data.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+                                            },
+                                        ]}
+                                    />
                                 </div>
 
-                                {lead.description && (
-                                    <div className="rounded-xl border border-border bg-card p-5">
-                                        <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-2">Description</p>
-                                        <p className="text-sm text-foreground leading-relaxed">{lead.description}</p>
-                                    </div>
-                                )}
+                                {/* Description - editable */}
+                                <div className="rounded-xl border border-border bg-card p-5">
+                                    <DetailFields
+                                        onSave={handleSave}
+                                        fields={[
+                                            {
+                                                label: "Description",
+                                                value: data.description || null,
+                                                dbColumn: "description",
+                                                type: "text",
+                                                rawValue: data.description,
+                                            },
+                                        ]}
+                                    />
+                                </div>
 
-                                {lead.contact && (
+                                {data.contact && (
                                     <LinkedEntityCard
                                         label="Contact"
-                                        title={`${lead.contact.first_name} ${lead.contact.last_name}`}
+                                        title={`${data.contact.first_name} ${data.contact.last_name}`}
                                         icon={
                                             <span className="text-[9px] font-bold text-muted-foreground">
-                                                {lead.contact.first_name[0]}{lead.contact.last_name[0]}
+                                                {data.contact.first_name[0]}{data.contact.last_name[0]}
                                             </span>
                                         }
                                     />
                                 )}
 
-                                {lead.company && (
+                                {data.company && (
                                     <LinkedEntityCard
                                         label="Company"
-                                        title={lead.company.name}
+                                        title={data.company.name}
                                         icon={
                                             <span className="text-[10px] font-bold text-muted-foreground">
-                                                {lead.company.name[0]}
+                                                {data.company.name[0]}
                                             </span>
                                         }
                                     />
@@ -168,11 +259,11 @@ export function LeadSideSheet({ lead, open, onOpenChange }: LeadSideSheetProps) 
                         )}
 
                         {activeTab === "notes" && (
-                            <NotesPanel entityType="lead" entityId={lead.id} />
+                            <NotesPanel entityType="lead" entityId={data.id} />
                         )}
 
                         {activeTab === "activity" && (
-                            <ActivityTimeline entityType="lead" entityId={lead.id} />
+                            <ActivityTimeline entityType="lead" entityId={data.id} />
                         )}
                     </div>
                 </div>

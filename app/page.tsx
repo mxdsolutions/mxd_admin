@@ -76,9 +76,12 @@ function AuthContent() {
       // MUST use browser client so Supabase stores the PKCE code_verifier
       // in the browser session before sending the email. Server Actions
       // cannot store the verifier, causing exchangeCodeForSession to fail.
+      // Set a cookie so the callback knows where to redirect — Supabase strips
+      // custom query params from redirectTo during the PKCE redirect chain.
+      document.cookie = "auth_redirect=/reset-password; path=/; max-age=600; SameSite=Lax";
       const supabase = createClient();
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       });
       if (error) {
         toast.error(error.message);

@@ -100,6 +100,7 @@ export const noteSchema = z.object({
     entity_type: z.string().min(1, "Entity type is required"),
     entity_id: z.string().uuid("Valid entity ID is required"),
     content: z.string().min(1, "Content is required"),
+    mentioned_user_ids: z.array(z.string().uuid()).optional(),
 });
 
 // --- Email Schemas ---

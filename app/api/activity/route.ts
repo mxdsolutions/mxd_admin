@@ -35,9 +35,9 @@ export async function GET(request: Request) {
     if (userIds.length > 0) {
         const { data: profiles } = await supabase
             .from("profiles")
-            .select("id, full_name")
+            .select("id, full_name, email")
             .in("id", userIds);
-        profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p.full_name]));
+        profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p.full_name || p.email || "Unknown"]));
     }
 
     const activities = (data || []).map(a => ({

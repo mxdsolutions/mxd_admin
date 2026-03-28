@@ -35,9 +35,9 @@ export async function GET(request: Request) {
     if (userIds.length > 0) {
         const { data: profiles } = await supabase
             .from("profiles")
-            .select("id, full_name")
+            .select("id, full_name, email")
             .in("id", userIds);
-        profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p.full_name]));
+        profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p.full_name || p.email || "Unknown"]));
     }
 
     const notes = (data || []).map(n => ({
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Validation failed", details: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { entity_type, entity_id, content } = validation.data;
+    const { entity_type, entity_id, content, mentioned_user_ids } = validation.data;
 
     const { data, error } = await supabase
         .from("notes")
@@ -77,14 +77,34 @@ export async function POST(request: Request) {
     // Resolve author name
     const { data: profile } = await supabase
         .from("profiles")
-        .select("id, full_name")
+        .select("id, full_name, email")
         .eq("id", user.id)
         .single();
+
+    const authorName = profile?.full_name || profile?.email || "Someone";
+
+    // Create notifications for mentioned users
+    if (mentioned_user_ids && mentioned_user_ids.length > 0) {
+        const uniqueMentions = [...new Set(mentioned_user_ids)].filter(id => id !== user.id);
+        if (uniqueMentions.length > 0) {
+            const notifications = uniqueMentions.map(userId => ({
+                user_id: userId,
+                type: "mention",
+                title: `${authorName} mentioned you in a note`,
+                body: content.length > 120 ? content.slice(0, 120) + "..." : content,
+                entity_type,
+                entity_id,
+                note_id: data.id,
+                created_by: user.id,
+            }));
+            await supabase.from("notifications").insert(notifications);
+        }
+    }
 
     return NextResponse.json({
         note: {
             ...data,
-            author: profile ? { id: profile.id, full_name: profile.full_name } : null,
+            author: profile ? { id: profile.id, full_name: profile.full_name || profile.email || "Unknown" } : null,
         }
     }, { status: 201 });
 }

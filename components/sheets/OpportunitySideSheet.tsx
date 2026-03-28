@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
     Sheet,
     SheetContent,
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { DetailFields, LinkedEntityCard } from "./DetailFields";
 import { NotesPanel } from "./NotesPanel";
 import { ActivityTimeline } from "./ActivityTimeline";
+import { createClient } from "@/lib/supabase/client";
 
 type Opportunity = {
     id: string;
@@ -33,6 +34,7 @@ interface OpportunitySideSheetProps {
     opportunity: Opportunity | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onUpdate?: () => void;
 }
 
 const stageConfig: Record<string, { label: string; color: string }> = {
@@ -43,16 +45,42 @@ const stageConfig: Record<string, { label: string; color: string }> = {
     closed_lost: { label: "Closed Lost", color: "bg-rose-400" },
 };
 
-export function OpportunitySideSheet({ opportunity, open, onOpenChange }: OpportunitySideSheetProps) {
+export function OpportunitySideSheet({ opportunity, open, onOpenChange, onUpdate }: OpportunitySideSheetProps) {
     const [activeTab, setActiveTab] = useState("details");
+    const [data, setData] = useState<Opportunity | null>(opportunity);
+    const [users, setUsers] = useState<{ value: string; label: string }[]>([]);
 
     useEffect(() => {
-        if (opportunity?.id) setActiveTab("details");
-    }, [opportunity?.id]);
+        setData(opportunity);
+    }, [opportunity]);
 
-    if (!opportunity) return null;
+    useEffect(() => {
+        if (data?.id) setActiveTab("details");
+    }, [data?.id]);
 
-    const stage = stageConfig[opportunity.stage] || stageConfig.appt_booked;
+    useEffect(() => {
+        const supabase = createClient();
+        supabase.from("profiles").select("id, full_name, email").then(({ data: profiles }) => {
+            if (profiles) setUsers(profiles.map((p) => ({ value: p.id, label: p.full_name || p.email || p.id })));
+        });
+    }, []);
+
+    const handleSave = useCallback(async (column: string, value: string | number | null) => {
+        if (!data) return;
+        const supabase = createClient();
+        const { error } = await supabase
+            .from("opportunities")
+            .update({ [column]: value, updated_at: new Date().toISOString() })
+            .eq("id", data.id);
+        if (!error) {
+            setData((prev) => prev ? { ...prev, [column]: value } : prev);
+            onUpdate?.();
+        }
+    }, [data, onUpdate]);
+
+    if (!data) return null;
+
+    const stage = stageConfig[data.stage] || stageConfig.appt_booked;
     const tabs = [
         { id: "details", label: "Details" },
         { id: "notes", label: "Notes" },
@@ -76,15 +104,15 @@ export function OpportunitySideSheet({ opportunity, open, onOpenChange }: Opport
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5">
                             <div className="flex items-center gap-2.5">
-                                <SheetTitle className="text-lg font-bold truncate">{opportunity.title}</SheetTitle>
+                                <SheetTitle className="text-lg font-bold truncate">{data.title}</SheetTitle>
                                 <Badge variant="outline" className="shrink-0 text-[10px] font-bold uppercase tracking-wider">
                                     <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", stage.color)} />
                                     {stage.label}
                                 </Badge>
                             </div>
                             <SheetDescription className="text-sm text-muted-foreground mt-1">
-                                ${opportunity.value.toLocaleString()}
-                                {opportunity.probability != null && ` · ${opportunity.probability}% probability`}
+                                ${data.value.toLocaleString()}
+                                {data.probability != null && ` · ${data.probability}% probability`}
                             </SheetDescription>
                         </div>
                     </SheetHeader>
@@ -121,44 +149,100 @@ export function OpportunitySideSheet({ opportunity, open, onOpenChange }: Opport
                                 <div className="rounded-xl border border-border bg-card p-5">
                                     <div className="flex items-baseline justify-between mb-3">
                                         <span className="text-2xl font-bold tabular-nums text-foreground">
-                                            ${opportunity.value.toLocaleString()}
+                                            ${data.value.toLocaleString()}
                                         </span>
-                                        {opportunity.probability != null && (
+                                        {data.probability != null && (
                                             <span className="text-sm font-semibold tabular-nums text-muted-foreground">
-                                                {opportunity.probability}%
+                                                {data.probability}%
                                             </span>
                                         )}
                                     </div>
-                                    {opportunity.probability != null && (
+                                    {data.probability != null && (
                                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                                             <div
-                                                className={cn("h-full rounded-full transition-all", probabilityColor(opportunity.probability))}
-                                                style={{ width: `${opportunity.probability}%` }}
+                                                className={cn("h-full rounded-full transition-all", probabilityColor(data.probability))}
+                                                style={{ width: `${data.probability}%` }}
                                             />
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="rounded-xl border border-border bg-card p-5">
-                                    <DetailFields fields={[
-                                        { label: "Stage", value: stage.label },
-                                        { label: "Expected Close", value: opportunity.expected_close_date ? new Date(opportunity.expected_close_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null },
-                                        { label: "Assigned To", value: opportunity.assignee?.full_name },
-                                        { label: "Created", value: new Date(opportunity.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) },
-                                    ]} />
+                                    <DetailFields
+                                        onSave={handleSave}
+                                        fields={[
+                                            {
+                                                label: "Title",
+                                                value: data.title,
+                                                dbColumn: "title",
+                                                type: "text",
+                                                rawValue: data.title,
+                                            },
+                                            {
+                                                label: "Stage",
+                                                value: stage.label,
+                                                dbColumn: "stage",
+                                                type: "select",
+                                                rawValue: data.stage,
+                                                options: Object.entries(stageConfig).map(([k, v]) => ({ value: k, label: v.label })),
+                                            },
+                                            {
+                                                label: "Value",
+                                                value: `$${data.value.toLocaleString()}`,
+                                                dbColumn: "value",
+                                                type: "number",
+                                                rawValue: data.value,
+                                            },
+                                            {
+                                                label: "Probability",
+                                                value: data.probability != null ? `${data.probability}%` : null,
+                                                dbColumn: "probability",
+                                                type: "number",
+                                                rawValue: data.probability,
+                                            },
+                                            {
+                                                label: "Expected Close",
+                                                value: data.expected_close_date ? new Date(data.expected_close_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null,
+                                                dbColumn: "expected_close_date",
+                                                type: "date",
+                                                rawValue: data.expected_close_date,
+                                            },
+                                            {
+                                                label: "Assigned To",
+                                                value: data.assignee?.full_name,
+                                                dbColumn: "assigned_to",
+                                                type: "select",
+                                                rawValue: data.assignee?.id ?? null,
+                                                options: users,
+                                            },
+                                            {
+                                                label: "Created",
+                                                value: new Date(data.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+                                            },
+                                        ]}
+                                    />
                                 </div>
 
-                                {opportunity.description && (
-                                    <div className="rounded-xl border border-border bg-card p-5">
-                                        <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-2">Description</p>
-                                        <p className="text-sm text-foreground leading-relaxed">{opportunity.description}</p>
-                                    </div>
-                                )}
+                                {/* Description */}
+                                <div className="rounded-xl border border-border bg-card p-5">
+                                    <DetailFields
+                                        onSave={handleSave}
+                                        fields={[
+                                            {
+                                                label: "Description",
+                                                value: data.description || null,
+                                                dbColumn: "description",
+                                                type: "text",
+                                                rawValue: data.description,
+                                            },
+                                        ]}
+                                    />
+                                </div>
 
-                                {opportunity.lead && (
+                                {data.lead && (
                                     <LinkedEntityCard
                                         label="Related Lead"
-                                        title={opportunity.lead.title}
+                                        title={data.lead.title}
                                         icon={
                                             <svg className="w-3.5 h-3.5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
@@ -167,25 +251,25 @@ export function OpportunitySideSheet({ opportunity, open, onOpenChange }: Opport
                                     />
                                 )}
 
-                                {opportunity.contact && (
+                                {data.contact && (
                                     <LinkedEntityCard
                                         label="Contact"
-                                        title={`${opportunity.contact.first_name} ${opportunity.contact.last_name}`}
+                                        title={`${data.contact.first_name} ${data.contact.last_name}`}
                                         icon={
                                             <span className="text-[9px] font-bold text-muted-foreground">
-                                                {opportunity.contact.first_name[0]}{opportunity.contact.last_name[0]}
+                                                {data.contact.first_name[0]}{data.contact.last_name[0]}
                                             </span>
                                         }
                                     />
                                 )}
 
-                                {opportunity.company && (
+                                {data.company && (
                                     <LinkedEntityCard
                                         label="Company"
-                                        title={opportunity.company.name}
+                                        title={data.company.name}
                                         icon={
                                             <span className="text-[10px] font-bold text-muted-foreground">
-                                                {opportunity.company.name[0]}
+                                                {data.company.name[0]}
                                             </span>
                                         }
                                     />
@@ -194,11 +278,11 @@ export function OpportunitySideSheet({ opportunity, open, onOpenChange }: Opport
                         )}
 
                         {activeTab === "notes" && (
-                            <NotesPanel entityType="opportunity" entityId={opportunity.id} />
+                            <NotesPanel entityType="opportunity" entityId={data.id} />
                         )}
 
                         {activeTab === "activity" && (
-                            <ActivityTimeline entityType="opportunity" entityId={opportunity.id} />
+                            <ActivityTimeline entityType="opportunity" entityId={data.id} />
                         )}
                     </div>
                 </div>

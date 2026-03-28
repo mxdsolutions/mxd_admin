@@ -11,6 +11,7 @@ import {
     CameraIcon,
     UserCircleIcon,
 } from "@heroicons/react/24/outline";
+import { cn } from "@/lib/utils";
 import { completeOnboarding } from "@/app/actions/onboarding";
 import { updatePassword } from "@/app/actions/auth";
 import { toast } from "sonner";
@@ -150,6 +151,8 @@ export default function OnboardingFlow() {
 
     const inputClass =
         "h-14 text-lg bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-primary/50 focus:bg-white/10 transition-all rounded-2xl";
+    const btnClass = "bg-white text-black hover:bg-white/90 rounded-full";
+    const btnLgClass = "bg-white text-black hover:bg-white/90 rounded-full px-8";
 
     return (
         <div className="min-h-screen bg-black flex flex-col relative overflow-hidden text-white">
@@ -196,7 +199,7 @@ export default function OnboardingFlow() {
                                 </div>
                                 <Button
                                     size="lg"
-                                    className="h-14 px-10 text-lg rounded-full"
+                                    className={cn("h-14 px-10 text-lg", btnLgClass)}
                                     onClick={() => setStep(1)}
                                 >
                                     Get Started{" "}
@@ -239,7 +242,7 @@ export default function OnboardingFlow() {
                                             onChange={(e) =>
                                                 updateField("password", e.target.value)
                                             }
-                                            className={inputClass}
+                                            data-no-focus-style className={inputClass}
                                             autoFocus
                                         />
                                     </div>
@@ -254,7 +257,7 @@ export default function OnboardingFlow() {
                                             onChange={(e) =>
                                                 updateField("confirmPassword", e.target.value)
                                             }
-                                            className={inputClass}
+                                            data-no-focus-style className={inputClass}
                                             onKeyDown={(e) =>
                                                 e.key === "Enter" &&
                                                 !nextDisabled &&
@@ -276,7 +279,7 @@ export default function OnboardingFlow() {
                                         size="lg"
                                         onClick={handleNext}
                                         disabled={nextDisabled}
-                                        className="rounded-full px-8"
+                                        className={btnLgClass}
                                     >
                                         {isSubmitting ? "Saving..." : "Continue"}
                                         {!isSubmitting && (
@@ -320,7 +323,7 @@ export default function OnboardingFlow() {
                                             onChange={(e) =>
                                                 updateField("first_name", e.target.value)
                                             }
-                                            className={inputClass}
+                                            data-no-focus-style className={inputClass}
                                             autoFocus
                                         />
                                     </div>
@@ -334,7 +337,7 @@ export default function OnboardingFlow() {
                                             onChange={(e) =>
                                                 updateField("last_name", e.target.value)
                                             }
-                                            className={inputClass}
+                                            data-no-focus-style className={inputClass}
                                             onKeyDown={(e) =>
                                                 e.key === "Enter" &&
                                                 !nextDisabled &&
@@ -356,7 +359,7 @@ export default function OnboardingFlow() {
                                         size="lg"
                                         onClick={handleNext}
                                         disabled={nextDisabled}
-                                        className="rounded-full px-8"
+                                        className={btnLgClass}
                                     >
                                         Continue
                                         <ArrowRightIcon className="ml-2 w-4 h-4" />
@@ -447,7 +450,7 @@ export default function OnboardingFlow() {
                                         size="lg"
                                         onClick={handleNext}
                                         disabled={isSubmitting}
-                                        className="rounded-full px-8"
+                                        className={btnLgClass}
                                     >
                                         {isSubmitting
                                             ? "Setting up..."

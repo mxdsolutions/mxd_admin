@@ -55,12 +55,12 @@
   }
 
   /* Gradient focus glow for inputs */
-  input:focus,
-  input:focus-visible,
-  textarea:focus,
-  textarea:focus-visible,
-  select:focus,
-  select:focus-visible {
+  input:focus:not([data-no-focus-style]),
+  input:focus-visible:not([data-no-focus-style]),
+  textarea:focus:not([data-no-focus-style]),
+  textarea:focus-visible:not([data-no-focus-style]),
+  select:focus:not([data-no-focus-style]),
+  select:focus-visible:not([data-no-focus-style]) {
     outline: none !important;
     --tw-ring-shadow: none !important;
     --tw-ring-offset-shadow: none !important;
