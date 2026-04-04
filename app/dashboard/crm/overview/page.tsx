@@ -1,7 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { DashboardPage, DashboardHeader } from "@/components/dashboard/DashboardPage";
+import { DashboardPage } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { statLabelClass, statValueClass, cardGap } from "@/lib/design-system";
@@ -11,19 +13,16 @@ import {
     CurrencyDollarIcon,
     ChartBarIcon,
 } from "@heroicons/react/24/outline";
-import {
-    ResponsiveContainer,
-    LineChart,
-    Line,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
-} from "recharts";
-import { toast } from "sonner";
 import { useStats } from "@/lib/swr";
-import { MetricsSkeleton, ChartSkeleton } from "@/components/ui/skeleton";
+import { MetricsSkeleton } from "@/components/ui/skeleton";
+
+const CrmPerformanceChart = dynamic(
+    () => import("@/components/charts/CrmPerformanceChart"),
+    {
+        loading: () => <div className="h-[300px] animate-pulse bg-muted rounded-xl" />,
+        ssr: false,
+    }
+);
 
 const fadeInUp = {
     hidden: { y: 12, opacity: 0 },
@@ -39,6 +38,7 @@ type Stats = {
 };
 
 export default function CrmOverview() {
+    usePageTitle("CRM Overview");
     const { data, isLoading: loading } = useStats();
     const stats: Stats | null = data?.stats || null;
 
@@ -75,11 +75,6 @@ export default function CrmOverview() {
 
     return (
         <DashboardPage className="space-y-6">
-            <DashboardHeader
-                title="CRM Overview"
-                subtitle="Your sales pipeline and customer relationships at a glance."
-            />
-
             {/* 4 Stat Cards - all on one line */}
             {loading ? (
                 <MetricsSkeleton count={4} />
@@ -119,53 +114,7 @@ export default function CrmOverview() {
                                     ))}
                                 </div>
                             ) : (
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <LineChart data={stats?.opportunityChart || []}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                                        <XAxis
-                                            dataKey="month"
-                                            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                                            axisLine={false}
-                                            tickLine={false}
-                                        />
-                                        <YAxis
-                                            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                                            axisLine={false}
-                                            tickLine={false}
-                                            allowDecimals={false}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: "hsl(var(--background))",
-                                                border: "1px solid hsl(var(--border))",
-                                                borderRadius: "12px",
-                                                fontSize: "12px",
-                                                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                                            }}
-                                        />
-                                        <Legend
-                                            wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }}
-                                        />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="total"
-                                            name="Opportunities Created"
-                                            stroke="hsl(var(--primary))"
-                                            strokeWidth={2}
-                                            dot={{ r: 3, fill: "hsl(var(--primary))" }}
-                                            activeDot={{ r: 5 }}
-                                        />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="won"
-                                            name="Won Opportunities"
-                                            stroke="#10b981"
-                                            strokeWidth={2}
-                                            dot={{ r: 3, fill: "#10b981" }}
-                                            activeDot={{ r: 5 }}
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
+                                <CrmPerformanceChart data={stats?.opportunityChart || []} />
                             )}
                         </div>
                     </CardContent>

@@ -6,6 +6,9 @@ import { jobSchema, jobUpdateSchema } from "@/lib/validation";
 
 export const GET = withAuth(async (request, { supabase }) => {
     const { limit, offset, search } = parsePagination(request);
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status");
+    const companyId = searchParams.get("company_id");
 
     let query = supabase
         .from("jobs")
@@ -38,15 +41,18 @@ export const GET = withAuth(async (request, { supabase }) => {
         query = query.or(`description.ilike.%${search}%`);
     }
 
+    if (status) query = query.eq("status", status);
+    if (companyId) query = query.eq("company_id", companyId);
+
     const { data, error, count } = await query;
     if (error) return serverError();
 
-    const jobs = (data || []).map((job: any) => ({
+    const jobs = (data || []).map((job) => ({
         ...job,
-        assignees: (job.assignees || []).map((a: any) => a.user).filter(Boolean),
+        assignees: ((job.assignees || []) as { user: unknown }[]).map((a) => a.user).filter(Boolean),
     }));
 
-    return NextResponse.json({ jobs, total: count || 0 });
+    return NextResponse.json({ items: jobs, total: count || 0 });
 });
 
 export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
@@ -69,7 +75,7 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
             .insert(assignee_ids.map((uid: string) => ({ job_id: data.id, user_id: uid, tenant_id: tenantId })));
     }
 
-    return NextResponse.json({ job: data }, { status: 201 });
+    return NextResponse.json({ item: data }, { status: 201 });
 });
 
 export const PATCH = withAuth(async (request, { supabase, tenantId }) => {
@@ -84,6 +90,7 @@ export const PATCH = withAuth(async (request, { supabase, tenantId }) => {
         .from("jobs")
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq("id", id)
+        .eq("tenant_id", tenantId)
         .select()
         .single();
 
@@ -98,5 +105,5 @@ export const PATCH = withAuth(async (request, { supabase, tenantId }) => {
         }
     }
 
-    return NextResponse.json({ job: data });
+    return NextResponse.json({ item: data });
 });

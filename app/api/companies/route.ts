@@ -21,7 +21,7 @@ export const GET = withAuth(async (request, { supabase }) => {
     const { data, error, count } = await query;
     if (error) return serverError();
 
-    return NextResponse.json({ companies: data, total: count || 0 });
+    return NextResponse.json({ items: data, total: count || 0 });
 });
 
 export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
@@ -40,5 +40,5 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
     // Push to Xero if connected (fire and forget)
     pushCompanyToXero(supabase, tenantId, data.id, validation.data).catch(console.error);
 
-    return NextResponse.json({ company: data }, { status: 201 });
+    return NextResponse.json({ item: data }, { status: 201 });
 });

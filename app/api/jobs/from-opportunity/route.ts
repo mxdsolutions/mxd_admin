@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/app/api/_lib/handler";
 import { validationError, serverError } from "@/app/api/_lib/errors";
 import { jobFromOpportunitySchema } from "@/lib/validation";
+import { DEFAULT_JOB_STATUSES, getDefaultStatusId } from "@/lib/status-config";
 
 export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
     const body = await request.json();
@@ -15,6 +16,17 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
         0
     );
 
+    // Fetch dynamic default status for jobs
+    const { data: statusConfig } = await supabase
+        .from("tenant_status_configs")
+        .select("statuses")
+        .eq("tenant_id", tenantId)
+        .eq("entity_type", "job")
+        .single();
+    const defaultStatus = getDefaultStatusId(
+        (statusConfig?.statuses as typeof DEFAULT_JOB_STATUSES) ?? DEFAULT_JOB_STATUSES
+    );
+
     const { data: job, error: jobError } = await supabase
         .from("jobs")
         .insert({
@@ -23,7 +35,7 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
             company_id,
             opportunity_id,
             assigned_to: assigned_to || null,
-            status: "new",
+            status: defaultStatus,
             created_by: user.id,
             tenant_id: tenantId,
         })
@@ -58,5 +70,5 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
             : Promise.resolve(),
     ]);
 
-    return NextResponse.json({ job }, { status: 201 });
+    return NextResponse.json({ item: job }, { status: 201 });
 });

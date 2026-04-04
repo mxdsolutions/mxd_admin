@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
 import {
     tableBase,
@@ -12,7 +13,6 @@ import {
     tableCellMuted
 } from "@/lib/design-system";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -22,7 +22,6 @@ import {
 } from "@heroicons/react/24/outline";
 import { CreateCompanyModal } from "@/components/modals/CreateCompanyModal";
 import { CompanySideSheet } from "@/components/sheets/CompanySideSheet";
-import { toast } from "sonner";
 import { useCompanies } from "@/lib/swr";
 import { TableSkeleton } from "@/components/ui/skeleton";
 
@@ -39,9 +38,10 @@ type Company = {
 };
 
 export default function CompaniesPage() {
+    usePageTitle("Companies");
     const [search, setSearch] = useState("");
     const { data, isLoading: loading, mutate } = useCompanies();
-    const companies: Company[] = data?.companies || [];
+    const companies: Company[] = data?.items || [];
     const [showCreate, setShowCreate] = useState(false);
     const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
@@ -58,26 +58,22 @@ export default function CompaniesPage() {
             <ScrollableTableLayout
                 header={
                     <>
-                        <DashboardHeader
-                            title="Companies"
-                            subtitle="Manage your company records and organizations."
-                        >
+                        <DashboardControls>
+                            <div className="flex items-center gap-3">
+                                <div className="relative flex-1 max-w-sm">
+                                    <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search companies..."
+                                        className="pl-9 rounded-xl border-border/50"
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                    />
+                                </div>
+                            </div>
                             <Button className="rounded-full px-6 shrink-0" onClick={() => setShowCreate(true)}>
                                 <PlusIcon className="w-4 h-4 mr-2" />
                                 Add Company
                             </Button>
-                        </DashboardHeader>
-
-                        <DashboardControls>
-                            <div className="relative flex-1 max-w-sm">
-                                <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search companies..."
-                                    className="pl-9 rounded-xl border-border/50"
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                />
-                            </div>
                         </DashboardControls>
                     </>
                 }

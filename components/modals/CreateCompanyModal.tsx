@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
+import { useContactOptions } from "@/lib/swr";
 
 const CreateContactModal = lazy(() =>
     import("./CreateContactModal").then(mod => ({ default: mod.CreateContactModal }))
@@ -19,24 +20,18 @@ interface CreateCompanyModalProps {
 
 type ContactOption = { id: string; first_name: string; last_name: string };
 
+/** Modal for creating a new company with optional contact linking. */
 export function CreateCompanyModal({ open, onOpenChange, onCreated }: CreateCompanyModalProps) {
     const [saving, setSaving] = useState(false);
     const [name, setName] = useState("");
     const [website, setWebsite] = useState("");
     const [contactId, setContactId] = useState("");
-    const [contacts, setContacts] = useState<ContactOption[]>([]);
     const [contactSearch, setContactSearch] = useState("");
     const [showContactDropdown, setShowContactDropdown] = useState(false);
     const [showCreateContact, setShowCreateContact] = useState(false);
 
-    useEffect(() => {
-        if (open) {
-            fetch("/api/contacts")
-                .then(r => r.json())
-                .then(d => setContacts(d.contacts || []))
-                .catch(() => {});
-        }
-    }, [open]);
+    const { data: contactData, mutate: refreshContacts } = useContactOptions(open);
+    const contacts: ContactOption[] = contactData?.items || [];
 
     const selectedContact = contacts.find(c => c.id === contactId);
     const filteredContacts = contacts.filter(c =>
@@ -66,7 +61,7 @@ export function CreateCompanyModal({ open, onOpenChange, onCreated }: CreateComp
             });
             if (!res.ok) throw new Error("Failed to create company");
             const data = await res.json();
-            const companyId = data.company?.id;
+            const companyId = data.item?.id;
 
             // Link the selected contact to this company
             if (companyId && contactId) {
@@ -81,7 +76,7 @@ export function CreateCompanyModal({ open, onOpenChange, onCreated }: CreateComp
             }
 
             toast.success("Company created");
-            onCreated?.(data.company);
+            onCreated?.(data.item);
             reset();
             onOpenChange(false);
         } catch {
@@ -196,7 +191,7 @@ export function CreateCompanyModal({ open, onOpenChange, onCreated }: CreateComp
                         open={showCreateContact}
                         onOpenChange={setShowCreateContact}
                         onCreated={(contact) => {
-                            setContacts(prev => [{ id: contact.id, first_name: contact.first_name, last_name: contact.last_name }, ...prev]);
+                            refreshContacts();
                             setContactId(contact.id);
                             setContactSearch("");
                         }}

@@ -24,10 +24,14 @@ export const GET = withAuth(async (request, { supabase }) => {
         query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`);
     }
 
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get("company_id");
+    if (companyId) query = query.eq("company_id", companyId);
+
     const { data, error, count } = await query;
     if (error) return serverError();
 
-    return NextResponse.json({ contacts: data, total: count || 0 });
+    return NextResponse.json({ items: data, total: count || 0 });
 });
 
 export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
@@ -57,10 +61,10 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
         })().catch(console.error);
     }
 
-    return NextResponse.json({ contact: data }, { status: 201 });
+    return NextResponse.json({ item: data }, { status: 201 });
 });
 
-export const PATCH = withAuth(async (request, { supabase }) => {
+export const PATCH = withAuth(async (request, { supabase, tenantId }) => {
     const body = await request.json();
     const validation = contactUpdateSchema.safeParse(body);
     if (!validation.success) return validationError(validation.error);
@@ -71,10 +75,11 @@ export const PATCH = withAuth(async (request, { supabase }) => {
         .from("contacts")
         .update(updates)
         .eq("id", id)
+        .eq("tenant_id", tenantId)
         .select()
         .single();
 
     if (error) return serverError();
 
-    return NextResponse.json({ contact: data });
+    return NextResponse.json({ item: data });
 });

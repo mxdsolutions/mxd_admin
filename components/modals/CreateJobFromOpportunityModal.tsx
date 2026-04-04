@@ -67,7 +67,7 @@ export function CreateJobFromOpportunityModal({
                 }));
                 setLineItems(items);
                 setUsers(userData.users || []);
-                setServices((prodData.services || []).filter((p: any) => p.status === "active"));
+                setServices((prodData.items || []).filter((p: any) => p.status === "active"));
             })
             .catch(() => toast.error("Failed to load data"))
             .finally(() => setLoading(false));
@@ -100,7 +100,7 @@ export function CreateJobFromOpportunityModal({
 
             const data = await res.json();
             toast.success("Job created from opportunity");
-            onCreated?.(data.job);
+            onCreated?.(data.item);
             onOpenChange(false);
         } catch {
             toast.error("Failed to create job");

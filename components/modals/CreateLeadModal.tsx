@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { CreateCompanyModal } from "./CreateCompanyModal";
 import { toast } from "sonner";
+import { useCompanyOptions, useStatusConfig } from "@/lib/swr";
+import { DEFAULT_LEAD_STATUSES, getDefaultStatusId } from "@/lib/status-config";
 
 interface CreateLeadModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onCreated?: (lead: any) => void;
+    onCreated?: (lead: Record<string, unknown>) => void;
 }
 
 type CompanyOption = { id: string; name: string };
@@ -27,24 +29,20 @@ const sourceOptions = [
     "Other",
 ];
 
+/** Modal for creating a new sales lead. Requires company selection. */
 export function CreateLeadModal({ open, onOpenChange, onCreated }: CreateLeadModalProps) {
     const [saving, setSaving] = useState(false);
     const [source, setSource] = useState("");
     const [description, setDescription] = useState("");
     const [companyId, setCompanyId] = useState("");
-    const [companies, setCompanies] = useState<CompanyOption[]>([]);
     const [companySearch, setCompanySearch] = useState("");
     const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
     const [showCreateCompany, setShowCreateCompany] = useState(false);
 
-    useEffect(() => {
-        if (open) {
-            fetch("/api/companies")
-                .then(r => r.json())
-                .then(d => setCompanies(d.companies || []))
-                .catch(() => { });
-        }
-    }, [open]);
+    const { data: statusData } = useStatusConfig("lead");
+    const defaultStatus = getDefaultStatusId(statusData?.statuses ?? DEFAULT_LEAD_STATUSES);
+    const { data: companyData, mutate: refreshCompanies } = useCompanyOptions(open);
+    const companies: CompanyOption[] = companyData?.items || [];
 
     const selectedCompany = companies.find(c => c.id === companyId);
     const filteredCompanies = companies.filter(c =>
@@ -74,13 +72,13 @@ export function CreateLeadModal({ open, onOpenChange, onCreated }: CreateLeadMod
                     source: source || null,
                     description: description.trim() || null,
                     company_id: companyId,
-                    status: "new",
+                    status: defaultStatus,
                 }),
             });
             if (!res.ok) throw new Error("Failed to create lead");
             const data = await res.json();
             toast.success("Lead created");
-            onCreated?.(data.lead);
+            onCreated?.(data.item);
             reset();
             onOpenChange(false);
         } catch {
@@ -199,7 +197,7 @@ export function CreateLeadModal({ open, onOpenChange, onCreated }: CreateLeadMod
                     open={showCreateCompany}
                     onOpenChange={setShowCreateCompany}
                     onCreated={(company) => {
-                        setCompanies(prev => [company, ...prev]);
+                        refreshCompanies();
                         setCompanyId(company.id);
                         setCompanySearch("");
                     }}

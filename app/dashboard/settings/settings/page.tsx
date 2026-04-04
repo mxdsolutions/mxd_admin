@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DashboardPage, DashboardHeader } from "@/components/dashboard/DashboardPage";
+import { DashboardPage } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
+    usePageTitle("Settings");
     const [user, setUser] = useState<{
         id: string;
         firstName: string;
@@ -68,11 +70,6 @@ export default function SettingsPage() {
 
     return (
         <DashboardPage className="max-w-4xl">
-            <DashboardHeader
-                title="Settings"
-                subtitle="Manage your account preferences and security settings."
-            />
-
             <div className="px-4 md:px-6 lg:px-10 space-y-6">
                 {/* Profile */}
                 <Card className="border-border shadow-none rounded-2xl overflow-hidden">

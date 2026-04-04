@@ -2,6 +2,7 @@ import { getTenantId, getTenantBranding, getTenantMembership } from "@/lib/tenan
 import { createClient } from "@/lib/supabase/server";
 import { TenantProvider, type TenantContextData } from "@/lib/tenant-context";
 import { TenantBrandingStyle } from "@/components/TenantBrandingStyle";
+import { isPlatformAdminUser } from "@/lib/platform-admin";
 import { DashboardShell } from "./DashboardShell";
 
 export default async function DashboardLayout({
@@ -12,6 +13,7 @@ export default async function DashboardLayout({
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
+    const showPlatformAdminLink = user ? isPlatformAdminUser(user) : false;
     let tenantData: TenantContextData | null = null;
 
     if (user) {
@@ -50,10 +52,10 @@ export default async function DashboardLayout({
             <TenantBrandingStyle />
             {tenantData ? (
                 <TenantProvider tenant={tenantData}>
-                    <DashboardShell>{children}</DashboardShell>
+                    <DashboardShell showPlatformAdminLink={showPlatformAdminLink}>{children}</DashboardShell>
                 </TenantProvider>
             ) : (
-                <DashboardShell>{children}</DashboardShell>
+                <DashboardShell showPlatformAdminLink={showPlatformAdminLink}>{children}</DashboardShell>
             )}
         </>
     );

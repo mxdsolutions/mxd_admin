@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardPage, DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardPage, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Kanban } from "@/components/Kanban";
@@ -12,8 +13,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { CreateLeadModal } from "@/components/modals/CreateLeadModal";
 import { LeadSideSheet } from "@/components/sheets/LeadSideSheet";
-import { toast } from "sonner";
-import { useLeads } from "@/lib/swr";
+import { useLeads, useStatusConfig } from "@/lib/swr";
+import { useKanbanPage } from "@/lib/hooks/use-kanban-page";
+import { DEFAULT_LEAD_STATUSES, toKanbanColumns } from "@/lib/status-config";
 
 type Lead = {
     id: string;
@@ -33,13 +35,7 @@ type Lead = {
     created_at: string;
 };
 
-const statusColumns = [
-    { id: "new", label: "New", color: "bg-blue-500" },
-    { id: "contacted", label: "Contacted", color: "bg-amber-500" },
-    { id: "qualified", label: "Qualified", color: "bg-emerald-500" },
-    { id: "unqualified", label: "Unqualified", color: "bg-rose-400" },
-    { id: "converted", label: "Converted", color: "bg-violet-500" },
-];
+// Status columns are loaded dynamically from tenant config
 
 const priorityConfig: Record<string, { dot: string; label: string }> = {
     low: { dot: "bg-slate-300", label: "Low" },
@@ -49,44 +45,42 @@ const priorityConfig: Record<string, { dot: string; label: string }> = {
 
 
 export default function LeadsPage() {
-    const [search, setSearch] = useState("");
-    const { data, isLoading: loading, mutate } = useLeads();
-    const leads: Lead[] = data?.leads || [];
+    usePageTitle("Leads");
+    const { data: statusData } = useStatusConfig("lead");
+    const statuses = statusData?.statuses ?? DEFAULT_LEAD_STATUSES;
+    const statusColumns = toKanbanColumns(statuses);
+    const leadsHook = useLeads();
+    const { search, setSearch, filteredItems: filteredLeads, isLoading: loading, handleMove, refresh: fetchLeads } = useKanbanPage<Lead>({
+        swr: leadsHook,
+        endpoint: "/api/leads",
+        statusField: "status",
+        searchFilter: (lead, q) =>
+            lead.title.toLowerCase().includes(q) ||
+            lead.contact?.first_name.toLowerCase().includes(q) ||
+            lead.contact?.last_name.toLowerCase().includes(q) ||
+            lead.company?.name.toLowerCase().includes(q) || false,
+    });
     const [showCreate, setShowCreate] = useState(false);
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-    const fetchLeads = () => mutate();
-
-    const filteredLeads = leads.filter(lead => {
-        const q = search.toLowerCase();
-        return lead.title.toLowerCase().includes(q) ||
-            lead.contact?.first_name.toLowerCase().includes(q) ||
-            lead.contact?.last_name.toLowerCase().includes(q) ||
-            lead.company?.name.toLowerCase().includes(q);
-    });
-
     return (
         <DashboardPage>
-            <DashboardHeader
-                title="Leads"
-                subtitle="Track and manage your sales leads."
-            >
+            <DashboardControls>
+                <div className="flex items-center gap-3">
+                    <div className="relative flex-1 max-w-sm">
+                        <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            placeholder="Search leads..."
+                            className="pl-9 rounded-xl border-border/50"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                </div>
                 <Button className="rounded-full px-6 shrink-0" onClick={() => setShowCreate(true)}>
                     <PlusIcon className="w-4 h-4 mr-2" />
                     Add Lead
                 </Button>
-            </DashboardHeader>
-
-            <DashboardControls>
-                <div className="relative flex-1 max-w-sm">
-                    <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        placeholder="Search leads..."
-                        className="pl-9 rounded-xl border-border/50"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
             </DashboardControls>
 
             <Kanban
@@ -95,25 +89,7 @@ export default function LeadsPage() {
                 getItemStatus={(lead) => lead.status}
                 loading={loading}
                 onCardClick={(lead) => setSelectedLead(lead)}
-                onItemMove={async (itemId, _from, to, label) => {
-                    // Optimistic update
-                    mutate(
-                        (current: any) => current ? { ...current, leads: current.leads.map((l: Lead) => l.id === itemId ? { ...l, status: to } : l) } : current,
-                        { revalidate: false }
-                    );
-                    try {
-                        const res = await fetch("/api/leads", {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: itemId, status: to }),
-                        });
-                        if (!res.ok) throw new Error();
-                        toast.success(`Moved to ${label}`);
-                    } catch {
-                        mutate(); // Revert by refetching
-                        toast.error("Failed to update status");
-                    }
-                }}
+                onItemMove={handleMove}
                 renderCard={(lead) => {
                     const priority = priorityConfig[lead.priority] || priorityConfig.low;
                     return (

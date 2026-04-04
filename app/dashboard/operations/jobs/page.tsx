@@ -2,7 +2,8 @@
 
 import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
 import {
     tableBase,
@@ -23,10 +24,11 @@ import {
     Squares2X2Icon,
     ListBulletIcon,
 } from "@heroicons/react/24/outline";
-import { toast } from "sonner";
 import { JobSideSheet } from "@/components/sheets/JobSideSheet";
 import { CreateJobModal } from "@/components/modals/CreateJobModal";
-import { useJobs } from "@/lib/swr";
+import { useJobs, useStatusConfig } from "@/lib/swr";
+import { useKanbanPage } from "@/lib/hooks/use-kanban-page";
+import { DEFAULT_JOB_STATUSES, toKanbanColumns, toStatusConfig } from "@/lib/status-config";
 import { TableSkeleton } from "@/components/ui/skeleton";
 
 type Assignee = { id: string; full_name: string | null; email: string | null };
@@ -46,12 +48,7 @@ type Job = {
     created_at: string;
 };
 
-const statusColumns = [
-    { id: "new", label: "New", color: "bg-amber-500" },
-    { id: "in_progress", label: "In Progress", color: "bg-blue-500" },
-    { id: "completed", label: "Completed", color: "bg-emerald-500" },
-    { id: "cancelled", label: "Cancelled", color: "bg-rose-400" },
-];
+// Status columns are loaded dynamically from tenant config
 
 const paidStatusLabel: Record<string, string> = {
     not_paid: "Not Paid",
@@ -80,54 +77,49 @@ export default function JobsPage() {
 
 function JobsPageContent() {
     const searchParams = useSearchParams();
-    const [search, setSearch] = useState("");
-    const { data, isLoading: loading, mutate } = useJobs();
-    const jobs: Job[] = data?.jobs || [];
+    const { data: statusData } = useStatusConfig("job");
+    const statuses = statusData?.statuses ?? DEFAULT_JOB_STATUSES;
+    const statusColumns = toKanbanColumns(statuses);
+    const jobStatusConfig = toStatusConfig(statuses);
+    const jobsHook = useJobs();
+    const { search, setSearch, filteredItems: filteredJobsRaw, isLoading: loading, handleMove, refresh: fetchJobs } = useKanbanPage<Job>({
+        swr: jobsHook,
+        endpoint: "/api/jobs",
+        statusField: "status",
+        searchFilter: (job, q) =>
+            job.description.toLowerCase().includes(q) ||
+            job.company?.name.toLowerCase().includes(q) ||
+            job.assignees.some(a => a.full_name?.toLowerCase().includes(q)) || false,
+    });
+    const filteredJobs = filteredJobsRaw.map(job => ({ ...job, title: job.description }));
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [showCreate, setShowCreate] = useState(false);
     const [view, setView] = useState<"table" | "kanban">("kanban");
     const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
 
-    const fetchJobs = () => mutate();
-
     // Handle deep-link open from URL params
     useEffect(() => {
-        if (!data?.jobs) return;
+        if (!jobsHook.data?.items) return;
         const openId = pendingOpenId || searchParams.get("open");
         if (openId) {
-            const job = jobs.find((j: Job) => j.id === openId);
+            const job = filteredJobsRaw.find((j: Job) => j.id === openId);
             if (job) {
                 setSelectedJob(job);
                 setSheetOpen(true);
             }
             setPendingOpenId(null);
         }
-    }, [data]);
+    }, [jobsHook.data]);
 
-    const filteredJobs = jobs.filter(job => {
-        const q = search.toLowerCase();
-        return job.description.toLowerCase().includes(q) ||
-            job.company?.name.toLowerCase().includes(q) ||
-            job.assignees.some(a => a.full_name?.toLowerCase().includes(q));
-    }).map(job => ({ ...job, title: job.description }));
+    usePageTitle("Jobs");
 
     return (
         <>
             <ScrollableTableLayout
                 header={
-                    <>
-                        <DashboardHeader
-                            title="Jobs"
-                            subtitle="View and manage all service jobs."
-                        >
-                            <Button className="rounded-full px-6 shrink-0" onClick={() => setShowCreate(true)}>
-                                <PlusIcon className="w-4 h-4 mr-2" />
-                                Add Job
-                            </Button>
-                        </DashboardHeader>
-
-                        <DashboardControls>
+                    <DashboardControls>
+                        <div className="flex items-center gap-3">
                             <div className="relative flex-1 max-w-sm">
                                 <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                 <Input
@@ -159,8 +151,12 @@ function JobsPageContent() {
                                     <ListBulletIcon className="w-4 h-4" />
                                 </button>
                             </div>
-                        </DashboardControls>
-                    </>
+                        </div>
+                        <Button className="rounded-full px-6 shrink-0" onClick={() => setShowCreate(true)}>
+                            <PlusIcon className="w-4 h-4 mr-2" />
+                            Add Job
+                        </Button>
+                    </DashboardControls>
                 }
             >
                 {view === "kanban" ? (
@@ -170,24 +166,7 @@ function JobsPageContent() {
                         getItemStatus={(job) => job.status}
                         loading={loading}
                         onCardClick={(job) => { setSelectedJob(job); setSheetOpen(true); }}
-                        onItemMove={async (itemId, _from, to, label) => {
-                            mutate(
-                                (current: any) => current ? { ...current, jobs: current.jobs.map((j: Job) => j.id === itemId ? { ...j, status: to } : j) } : current,
-                                { revalidate: false }
-                            );
-                            try {
-                                const res = await fetch("/api/jobs", {
-                                    method: "PATCH",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ id: itemId, status: to }),
-                                });
-                                if (!res.ok) throw new Error();
-                                toast.success(`Moved to ${label}`);
-                            } catch {
-                                mutate();
-                                toast.error("Failed to update status");
-                            }
-                        }}
+                        onItemMove={handleMove}
                         renderCard={(job) => (
                             <div className="space-y-2.5">
                                 {/* Job name */}
@@ -304,12 +283,10 @@ function JobsPageContent() {
                                             <div className="flex items-center gap-2">
                                                 <div className={cn(
                                                     "w-1.5 h-1.5 rounded-full",
-                                                    job.status === "completed" ? "bg-emerald-500" :
-                                                    job.status === "in_progress" ? "bg-blue-500" :
-                                                    job.status === "cancelled" ? "bg-red-500" : "bg-amber-500"
+                                                    jobStatusConfig[job.status]?.color || "bg-gray-400"
                                                 )} />
                                                 <span className="text-xs font-medium text-muted-foreground capitalize">
-                                                    {job.status.replace(/_/g, " ")}
+                                                    {jobStatusConfig[job.status]?.label || job.status.replace(/_/g, " ")}
                                                 </span>
                                             </div>
                                         </td>

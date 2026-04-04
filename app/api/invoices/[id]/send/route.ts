@@ -51,9 +51,9 @@ export const POST = withAuth(async (request: NextRequest, { supabase, tenantId }
         );
 
         if (!res.ok) {
-            const err = await res.text();
+            console.error("Xero send invoice error:", await res.text());
             return NextResponse.json(
-                { error: `Failed to send invoice via Xero: ${err}` },
+                { error: "Failed to send invoice via Xero" },
                 { status: 500 }
             );
         }

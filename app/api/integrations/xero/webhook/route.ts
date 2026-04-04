@@ -23,7 +23,8 @@ function verifyWebhookSignature(
 export async function POST(request: NextRequest) {
     const webhookKey = process.env.XERO_WEBHOOK_KEY;
     if (!webhookKey) {
-        return new NextResponse(null, { status: 500 });
+        console.error("XERO_WEBHOOK_KEY is not configured");
+        return new NextResponse(null, { status: 401 });
     }
 
     const payload = await request.text();

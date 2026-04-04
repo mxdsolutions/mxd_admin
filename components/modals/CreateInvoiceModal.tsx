@@ -38,9 +38,9 @@ export function CreateInvoiceModal({ open, onOpenChange, onCreated }: CreateInvo
     const { data: contactsData } = useContacts();
     const { data: jobsData } = useJobs();
 
-    const companies = companiesData?.companies || [];
-    const contacts = contactsData?.contacts || [];
-    const jobs = jobsData?.items || jobsData?.jobs || [];
+    const companies = companiesData?.items || [];
+    const contacts = contactsData?.items || [];
+    const jobs = jobsData?.items || [];
 
     useEffect(() => {
         if (!open) {

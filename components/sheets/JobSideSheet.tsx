@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { DetailFields, LinkedEntityCard } from "./DetailFields";
 import { NotesPanel } from "./NotesPanel";
@@ -8,6 +8,8 @@ import { ActivityTimeline } from "./ActivityTimeline";
 import { SideSheetLayout } from "@/features/side-sheets/SideSheetLayout";
 import { LineItemsTable } from "@/features/line-items/LineItemsTable";
 import { createClient } from "@/lib/supabase/client";
+import { useProfiles, useStatusConfig } from "@/lib/swr";
+import { DEFAULT_JOB_STATUSES, toStatusConfig } from "@/lib/status-config";
 import { toast } from "sonner";
 
 type Assignee = { id: string; full_name: string | null; email: string | null };
@@ -50,12 +52,7 @@ interface JobSideSheetProps {
     onUpdate?: () => void;
 }
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-    new: { label: "New", color: "bg-amber-500" },
-    in_progress: { label: "In Progress", color: "bg-blue-500" },
-    completed: { label: "Completed", color: "bg-emerald-500" },
-    cancelled: { label: "Cancelled", color: "bg-rose-400" },
-};
+// Status config is loaded dynamically from tenant config
 
 const paidStatusConfig: Record<string, { label: string; color: string }> = {
     not_paid: { label: "Not Paid", color: "text-rose-500" },
@@ -63,24 +60,31 @@ const paidStatusConfig: Record<string, { label: string; color: string }> = {
     paid_in_full: { label: "Paid in Full", color: "text-emerald-500" },
 };
 
+/** Side sheet for viewing/editing job details, assignees, line items, and payment status. */
 export function JobSideSheet({ job, open, onOpenChange, onUpdate }: JobSideSheetProps) {
     const [activeTab, setActiveTab] = useState("details");
     const [data, setData] = useState<Job | null>(job);
-    const [users, setUsers] = useState<{ value: string; label: string }[]>([]);
     const [jobProjects, setJobProjects] = useState<{ id: string; title: string; status: string }[]>([]);
     const [opportunities, setOpportunities] = useState<{ value: string; label: string }[]>([]);
     const [companies, setCompanies] = useState<{ value: string; label: string }[]>([]);
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
     const [services, setServices] = useState<Service[]>([]);
+    const { data: statusData } = useStatusConfig("job");
+    const statusConfig = toStatusConfig(statusData?.statuses ?? DEFAULT_JOB_STATUSES);
+    const { data: profilesData } = useProfiles();
+    const users: { value: string; label: string }[] = useMemo(() =>
+        (profilesData?.users || []).map((u: { id: string; email?: string; user_metadata?: { full_name?: string } }) => ({
+            value: u.id,
+            label: u.user_metadata?.full_name || u.email || u.id,
+        })),
+        [profilesData]
+    );
 
     useEffect(() => { setData(job); }, [job]);
     useEffect(() => { if (data?.id) setActiveTab("details"); }, [data?.id]);
 
     useEffect(() => {
         const supabase = createClient();
-        supabase.from("profiles").select("id, full_name, email").then(({ data: profiles }) => {
-            if (profiles) setUsers(profiles.map((p) => ({ value: p.id, label: p.full_name || p.email || p.id })));
-        });
         supabase.from("opportunities").select("id, title").then(({ data: opps }) => {
             if (opps) setOpportunities(opps.map((o) => ({ value: o.id, label: o.title })));
         });

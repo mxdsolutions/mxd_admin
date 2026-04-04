@@ -46,7 +46,7 @@ export const POST = withAuth(async (request, { supabase, tenantId }) => {
     return NextResponse.json({ lineItem: data, jobAmount: newTotal }, { status: 201 });
 });
 
-export const PATCH = withAuth(async (request, { supabase }) => {
+export const PATCH = withAuth(async (request, { supabase, tenantId }) => {
     const body = await request.json();
     const validation = lineItemUpdateSchema.safeParse(body);
     if (!validation.success) return validationError(validation.error);
@@ -57,6 +57,7 @@ export const PATCH = withAuth(async (request, { supabase }) => {
         .from("job_line_items")
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq("id", id)
+        .eq("tenant_id", tenantId)
         .select(`*, product:products (id, name)`)
         .single();
 
@@ -67,7 +68,7 @@ export const PATCH = withAuth(async (request, { supabase }) => {
     return NextResponse.json({ lineItem: data, jobAmount: newTotal });
 });
 
-export const DELETE = withAuth(async (request, { supabase }) => {
+export const DELETE = withAuth(async (request, { supabase, tenantId }) => {
     const id = request.nextUrl.searchParams.get("id");
     if (!id) return missingParamError("id");
 
@@ -75,6 +76,7 @@ export const DELETE = withAuth(async (request, { supabase }) => {
         .from("job_line_items")
         .select("job_id")
         .eq("id", id)
+        .eq("tenant_id", tenantId)
         .single();
 
     if (!item) return notFoundError("Line item");
@@ -82,7 +84,8 @@ export const DELETE = withAuth(async (request, { supabase }) => {
     const { error } = await supabase
         .from("job_line_items")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("tenant_id", tenantId);
 
     if (error) return serverError();
 

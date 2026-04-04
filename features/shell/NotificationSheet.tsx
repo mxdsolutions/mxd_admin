@@ -29,7 +29,7 @@ export function NotificationSheet({
 }: NotificationSheetProps) {
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="left" className="w-full sm:max-w-sm flex flex-col p-0 border-r border-border bg-background">
+            <SheetContent side="right" className="w-full sm:max-w-sm flex flex-col p-0 border-l border-border bg-background">
                 <SheetHeader className="px-5 py-4 border-b border-border flex flex-row items-center justify-between space-y-0">
                     <SheetTitle className="text-base font-semibold">Notifications</SheetTitle>
                     {unreadCount > 0 && (

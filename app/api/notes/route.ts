@@ -33,7 +33,7 @@ export const GET = withAuth(async (request, { supabase }) => {
         author: n.author || null,
     }));
 
-    return NextResponse.json({ notes });
+    return NextResponse.json({ items: notes });
 });
 
 export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
@@ -80,7 +80,7 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
     }
 
     return NextResponse.json({
-        note: {
+        item: {
             ...noteResult.data,
             author: profile ? { id: profile.id, full_name: profile.full_name || profile.email || "Unknown" } : null,
         }

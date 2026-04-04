@@ -33,6 +33,7 @@ interface SideSheetLayoutProps {
     children: ReactNode;
 }
 
+/** Reusable side sheet layout with header (icon, title, badge), tab navigation, and scrollable content area. */
 export function SideSheetLayout({
     open,
     onOpenChange,

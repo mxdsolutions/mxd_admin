@@ -1,22 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
+import { useCompanyOptions, useOpportunities, useProfiles, useStatusConfig } from "@/lib/swr";
+import { DEFAULT_JOB_STATUSES, getDefaultStatusId } from "@/lib/status-config";
 
 interface CreateJobModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onCreated?: (job: any) => void;
+    onCreated?: (job: Record<string, unknown>) => void;
 }
 
 type Company = { id: string; name: string };
 type Opportunity = { id: string; title: string; company_id: string | null };
 type User = { id: string; full_name: string | null; email: string | null };
 
+/** Modal for creating a new service job with company, opportunity, and assignee selection. */
 export function CreateJobModal({ open, onOpenChange, onCreated }: CreateJobModalProps) {
     const [saving, setSaving] = useState(false);
     const [description, setDescription] = useState("");
@@ -25,17 +28,16 @@ export function CreateJobModal({ open, onOpenChange, onCreated }: CreateJobModal
     const [opportunityId, setOpportunityId] = useState("");
     const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
 
-    const [companies, setCompanies] = useState<Company[]>([]);
-    const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-    const [users, setUsers] = useState<User[]>([]);
+    const { data: statusData } = useStatusConfig("job");
+    const defaultStatus = getDefaultStatusId(statusData?.statuses ?? DEFAULT_JOB_STATUSES);
+    const { data: companyData } = useCompanyOptions(open);
+    const companies: Company[] = companyData?.items || [];
 
-    useEffect(() => {
-        if (open) {
-            fetch("/api/companies").then(r => r.json()).then(d => setCompanies(d.companies || [])).catch(() => {});
-            fetch("/api/opportunities").then(r => r.json()).then(d => setOpportunities(d.opportunities || [])).catch(() => {});
-            fetch("/api/users").then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => {});
-        }
-    }, [open]);
+    const { data: opportunityData } = useOpportunities();
+    const opportunities: Opportunity[] = opportunityData?.items || [];
+
+    const { data: userData } = useProfiles();
+    const users: User[] = userData?.users || [];
 
     const filteredOpportunities = opportunities.filter(o => !companyId || o.company_id === companyId);
 
@@ -62,13 +64,13 @@ export function CreateJobModal({ open, onOpenChange, onCreated }: CreateJobModal
                     company_id: companyId,
                     opportunity_id: opportunityId || null,
                     assignee_ids: assigneeIds,
-                    status: "new",
+                    status: defaultStatus,
                 }),
             });
             if (!res.ok) throw new Error("Failed to create job");
             const data = await res.json();
             toast.success("Job created");
-            onCreated?.(data.job);
+            onCreated?.(data.item);
             reset();
             onOpenChange(false);
         } catch {

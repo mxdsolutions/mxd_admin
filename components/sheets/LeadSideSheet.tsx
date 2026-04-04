@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Sheet,
     SheetContent,
@@ -14,6 +14,8 @@ import { DetailFields, LinkedEntityCard } from "./DetailFields";
 import { NotesPanel } from "./NotesPanel";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { createClient } from "@/lib/supabase/client";
+import { useProfiles, useStatusConfig } from "@/lib/swr";
+import { DEFAULT_LEAD_STATUSES, toStatusConfig } from "@/lib/status-config";
 import { CreateOpportunityFromLeadModal } from "@/components/modals/CreateOpportunityFromLeadModal";
 import { Button } from "@/components/ui/button";
 
@@ -39,13 +41,7 @@ interface LeadSideSheetProps {
     onUpdate?: () => void;
 }
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-    new: { label: "New", color: "bg-blue-500" },
-    contacted: { label: "Contacted", color: "bg-amber-500" },
-    qualified: { label: "Qualified", color: "bg-emerald-500" },
-    unqualified: { label: "Unqualified", color: "bg-rose-400" },
-    converted: { label: "Converted", color: "bg-violet-500" },
-};
+// Status config is loaded dynamically from tenant config
 
 const priorityConfig: Record<string, { label: string; color: string }> = {
     low: { label: "Low", color: "bg-slate-400" },
@@ -53,11 +49,21 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
     high: { label: "High", color: "bg-rose-500" },
 };
 
+/** Side sheet for viewing and editing lead details, notes, and activity. */
 export function LeadSideSheet({ lead, open, onOpenChange, onUpdate }: LeadSideSheetProps) {
     const [activeTab, setActiveTab] = useState("details");
     const [data, setData] = useState<Lead | null>(lead);
-    const [users, setUsers] = useState<{ value: string; label: string }[]>([]);
     const [showCreateOpp, setShowCreateOpp] = useState(false);
+    const { data: statusData } = useStatusConfig("lead");
+    const statusConfig = toStatusConfig(statusData?.statuses ?? DEFAULT_LEAD_STATUSES);
+    const { data: profilesData } = useProfiles();
+    const users: { value: string; label: string }[] = useMemo(() =>
+        (profilesData?.users || []).map((u: { id: string; email?: string; user_metadata?: { full_name?: string } }) => ({
+            value: u.id,
+            label: u.user_metadata?.full_name || u.email || u.id,
+        })),
+        [profilesData]
+    );
 
     useEffect(() => {
         setData(lead);
@@ -66,13 +72,6 @@ export function LeadSideSheet({ lead, open, onOpenChange, onUpdate }: LeadSideSh
     useEffect(() => {
         if (data?.id) setActiveTab("details");
     }, [data?.id]);
-
-    useEffect(() => {
-        const supabase = createClient();
-        supabase.from("profiles").select("id, full_name, email").then(({ data: profiles }) => {
-            if (profiles) setUsers(profiles.map((p) => ({ value: p.id, label: p.full_name || p.email || p.id })));
-        });
-    }, []);
 
     const handleSave = useCallback(async (column: string, value: string | number | null) => {
         if (!data) return;

@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { SideSheetLayout } from "@/features/side-sheets/SideSheetLayout";
 import { DetailFields, LinkedEntityCard } from "./DetailFields";
 import { NotesPanel } from "./NotesPanel";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { createClient } from "@/lib/supabase/client";
+import { useTenant } from "@/lib/tenant-context";
+import { Button } from "@/components/ui/button";
+import { DocumentTextIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline";
+import type { ReportTemplate, TemplateSchema } from "@/lib/report-templates/types";
 
 type Report = {
     id: string;
@@ -15,6 +20,7 @@ type Report = {
     notes: string | null;
     created_at: string;
     data: Record<string, unknown>;
+    template_id?: string | null;
     job?: { id: string; description: string } | null;
     project?: { id: string; title: string } | null;
     company?: { id: string; name: string } | null;
@@ -47,11 +53,60 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function ReportSideSheet({ report, open, onOpenChange, onUpdate }: ReportSideSheetProps) {
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState("details");
     const [data, setData] = useState<Report | null>(report);
+    const [downloading, setDownloading] = useState(false);
+
+    let tenant: ReturnType<typeof useTenant> | null = null;
+    try { tenant = useTenant(); } catch { /* no provider */ }
 
     useEffect(() => { setData(report); }, [report]);
     useEffect(() => { if (data?.id) setActiveTab("details"); }, [data?.id]);
+
+    const handleDownloadPDF = useCallback(async () => {
+        if (!data || !data.template_id || !tenant) return;
+        setDownloading(true);
+        try {
+            const res = await fetch("/api/report-templates");
+            const templatesData = await res.json();
+            const tpl = (templatesData.items || []).find((t: ReportTemplate) => t.id === data.template_id);
+            if (!tpl) throw new Error("Template not found");
+
+            const schema: TemplateSchema = tpl.schema && tpl.schema.version === 1
+                ? tpl.schema : { version: 1, sections: [] };
+
+            const [{ pdf }, { ReportPDF }] = await Promise.all([
+                import("@react-pdf/renderer"),
+                import("@/components/reports/ReportPDF"),
+            ]);
+            const { createElement } = await import("react");
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const element = createElement(ReportPDF, {
+                report: data,
+                template: { name: tpl.name, schema },
+                tenant: {
+                    company_name: tenant.company_name,
+                    name: tenant.name,
+                    logo_url: tenant.logo_url,
+                    address: tenant.address,
+                    phone: tenant.phone,
+                    email: tenant.email,
+                    abn: tenant.abn,
+                    primary_color: tenant.primary_color || "#000000",
+                },
+            }) as any;
+            const blob = await pdf(element).toBlob();
+
+            const url = URL.createObjectURL(blob);
+            window.open(url, "_blank");
+        } catch {
+            // Silent fail — could add toast here
+        } finally {
+            setDownloading(false);
+        }
+    }, [data, tenant]);
 
     const handleSave = useCallback(async (column: string, value: string | number | null) => {
         if (!data) return;
@@ -94,6 +149,32 @@ export function ReportSideSheet({ report, open, onOpenChange, onUpdate }: Report
         >
             {activeTab === "details" && (
                 <div className="space-y-4">
+                    {data.template_id && (
+                        <div className="space-y-2">
+                            <Button
+                                variant="outline"
+                                className="w-full rounded-xl"
+                                onClick={() => {
+                                    onOpenChange(false);
+                                    router.push(`/report/${data.id}`);
+                                }}
+                            >
+                                <DocumentTextIcon className="w-4 h-4 mr-2" />
+                                Open Report Form
+                            </Button>
+                            {data.status === "submitted" && (
+                                <Button
+                                    variant="outline"
+                                    className="w-full rounded-xl"
+                                    onClick={handleDownloadPDF}
+                                    disabled={downloading}
+                                >
+                                    <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                                    {downloading ? "Generating..." : "View PDF"}
+                                </Button>
+                            )}
+                        </div>
+                    )}
                     <div className="rounded-xl border border-border bg-card p-5">
                         <DetailFields
                             onSave={handleSave}

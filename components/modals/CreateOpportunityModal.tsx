@@ -1,21 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { CreateLeadModal } from "./CreateLeadModal";
 import { toast } from "sonner";
+import { useLeadOptions, useStatusConfig } from "@/lib/swr";
+import { DEFAULT_OPPORTUNITY_STAGES, getDefaultStatusId } from "@/lib/status-config";
 
 interface CreateOpportunityModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onCreated?: (opportunity: any) => void;
+    onCreated?: (opportunity: Record<string, unknown>) => void;
 }
 
 type LeadOption = { id: string; title: string; company_id?: string | null };
 
+/** Modal for creating a new pipeline opportunity. Optionally links to a lead. */
 export function CreateOpportunityModal({ open, onOpenChange, onCreated }: CreateOpportunityModalProps) {
     const [saving, setSaving] = useState(false);
     const [title, setTitle] = useState("");
@@ -23,19 +26,18 @@ export function CreateOpportunityModal({ open, onOpenChange, onCreated }: Create
     const [probability, setProbability] = useState("50");
     const [expectedCloseDate, setExpectedCloseDate] = useState("");
     const [leadId, setLeadId] = useState("");
-    const [leads, setLeads] = useState<LeadOption[]>([]);
     const [leadSearch, setLeadSearch] = useState("");
     const [showLeadDropdown, setShowLeadDropdown] = useState(false);
     const [showCreateLead, setShowCreateLead] = useState(false);
 
-    useEffect(() => {
-        if (open) {
-            fetch("/api/leads")
-                .then(r => r.json())
-                .then(d => setLeads((d.leads || []).map((l: any) => ({ id: l.id, title: l.title, company_id: l.company_id }))))
-                .catch(() => { });
-        }
-    }, [open]);
+    const { data: stageData } = useStatusConfig("opportunity");
+    const defaultStage = getDefaultStatusId(stageData?.statuses ?? DEFAULT_OPPORTUNITY_STAGES);
+    const { data: leadData, mutate: refreshLeads } = useLeadOptions(open);
+    const leads: LeadOption[] = ((leadData?.items || []) as Record<string, unknown>[]).map((l) => ({
+        id: l.id as string,
+        title: l.title as string,
+        company_id: l.company_id as string | null | undefined,
+    }));
 
     const selectedLead = leads.find(l => l.id === leadId);
     const filteredLeads = leads.filter(l =>
@@ -68,13 +70,13 @@ export function CreateOpportunityModal({ open, onOpenChange, onCreated }: Create
                     expected_close_date: expectedCloseDate || null,
                     lead_id: leadId || null,
                     company_id: lead?.company_id || null,
-                    stage: "appt_booked",
+                    stage: defaultStage,
                 }),
             });
             if (!res.ok) throw new Error("Failed to create opportunity");
             const data = await res.json();
             toast.success("Opportunity created");
-            onCreated?.(data.opportunity);
+            onCreated?.(data.item);
             reset();
             onOpenChange(false);
         } catch {
@@ -208,8 +210,8 @@ export function CreateOpportunityModal({ open, onOpenChange, onCreated }: Create
                 open={showCreateLead}
                 onOpenChange={setShowCreateLead}
                 onCreated={(lead) => {
-                    setLeads(prev => [{ id: lead.id, title: lead.title, company_id: lead.company_id }, ...prev]);
-                    setLeadId(lead.id);
+                    refreshLeads();
+                    setLeadId(lead.id as string);
                     setLeadSearch("");
                 }}
             />

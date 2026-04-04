@@ -1,5 +1,11 @@
 import { headers } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import {
+    DEFAULT_LEAD_STATUSES,
+    DEFAULT_OPPORTUNITY_STAGES,
+    DEFAULT_JOB_STATUSES,
+} from "@/lib/status-config";
+import { DEFAULT_MODULES } from "@/lib/module-config";
 
 export type TenantBranding = {
     id: string;
@@ -167,5 +173,33 @@ export async function seedDefaultRoles(tenantId: string) {
 
     await admin.from("tenant_roles").insert(
         defaultRoles.map((r) => ({ tenant_id: tenantId, ...r }))
+    );
+}
+
+/**
+ * Seed default status configs for a new tenant.
+ */
+export async function seedDefaultStatuses(tenantId: string) {
+    const admin = await createAdminClient();
+
+    await admin.from("tenant_status_configs").insert([
+        { tenant_id: tenantId, entity_type: "lead", statuses: DEFAULT_LEAD_STATUSES },
+        { tenant_id: tenantId, entity_type: "opportunity", statuses: DEFAULT_OPPORTUNITY_STAGES },
+        { tenant_id: tenantId, entity_type: "job", statuses: DEFAULT_JOB_STATUSES },
+    ]);
+}
+
+/**
+ * Seed default module access for a new tenant (all enabled).
+ */
+export async function seedDefaultModules(tenantId: string) {
+    const admin = await createAdminClient();
+
+    await admin.from("tenant_modules").insert(
+        DEFAULT_MODULES.map((m) => ({
+            tenant_id: tenantId,
+            module_id: m.module_id,
+            enabled: m.enabled,
+        })),
     );
 }

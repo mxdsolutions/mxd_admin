@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LineItemsTable } from "@/features/line-items/LineItemsTable";
 import { toast } from "sonner";
+import { useStatusConfig } from "@/lib/swr";
+import { DEFAULT_OPPORTUNITY_STAGES, getDefaultStatusId } from "@/lib/status-config";
 
 type DraftLineItem = {
     product_id: string;
@@ -39,6 +41,8 @@ export function CreateOpportunityFromLeadModal({
     onCreated,
 }: CreateOpportunityFromLeadModalProps) {
     const router = useRouter();
+    const { data: stageData } = useStatusConfig("opportunity");
+    const defaultStage = getDefaultStatusId(stageData?.statuses ?? DEFAULT_OPPORTUNITY_STAGES);
     const [lineItems, setLineItems] = useState<DraftLineItem[]>([]);
     const [probability, setProbability] = useState("50");
     const [expectedCloseDate, setExpectedCloseDate] = useState("");
@@ -53,7 +57,7 @@ export function CreateOpportunityFromLeadModal({
 
         fetch("/api/services")
             .then((r) => r.json())
-            .then((d) => setServices((d.services || []).filter((p: any) => p.status === "active")))
+            .then((d) => setServices((d.items || []).filter((p: any) => p.status === "active")))
             .catch(() => {});
     }, [open]);
 
@@ -88,12 +92,12 @@ export function CreateOpportunityFromLeadModal({
                     expected_close_date: expectedCloseDate || null,
                     lead_id: leadId,
                     company_id: companyId,
-                    stage: "appt_booked",
+                    stage: defaultStage,
                 }),
             });
             if (!res.ok) throw new Error("Failed to create opportunity");
             const data = await res.json();
-            const oppId = data.opportunity?.id;
+            const oppId = data.item?.id;
 
             if (oppId) {
                 await Promise.all([
@@ -118,7 +122,7 @@ export function CreateOpportunityFromLeadModal({
             }
 
             toast.success("Opportunity created");
-            onCreated?.(data.opportunity);
+            onCreated?.(data.item);
             onOpenChange(false);
             router.push(`/dashboard/crm/opportunities?open=${oppId}`);
         } catch {

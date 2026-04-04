@@ -220,6 +220,7 @@ export const reportSchema = z.object({
     job_id: z.string().uuid().optional().nullable(),
     project_id: z.string().uuid().optional().nullable(),
     company_id: z.string().uuid().optional().nullable(),
+    template_id: z.string().uuid().optional().nullable(),
     data: z.record(z.string(), z.unknown()).optional(),
     notes: z.string().max(5000).optional().nullable(),
 });
@@ -269,6 +270,127 @@ export const invoiceSchema = z.object({
 export const invoiceUpdateSchema = z.object({
     id: z.string().uuid("Valid ID is required"),
 }).merge(invoiceSchema.partial());
+
+// --- Report Template Schemas ---
+
+const fieldDefSchema = z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    type: z.enum(["text", "textarea", "number", "currency", "date", "select", "yes_no", "checkbox", "photo_upload", "heading", "entity_select"]),
+    required: z.boolean().optional(),
+    placeholder: z.string().optional(),
+    helpText: z.string().optional(),
+    options: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+    width: z.enum(["full", "half"]).optional(),
+    entityType: z.enum(["job", "company", "contact"]).optional(),
+    autoPopulateKey: z.string().optional(),
+});
+
+const sectionDefSchema = z.object({
+    id: z.string().min(1),
+    title: z.string().min(1),
+    description: z.string().optional(),
+    type: z.enum(["standard", "repeater"]),
+    fields: z.array(fieldDefSchema),
+    minItems: z.number().min(0).optional(),
+    maxItems: z.number().min(1).optional(),
+    addLabel: z.string().optional(),
+});
+
+const templateSchemaObj = z.object({
+    version: z.literal(1),
+    sections: z.array(sectionDefSchema),
+});
+
+export const reportTemplateCreateSchema = z.object({
+    name: z.string().min(1, "Template name is required").max(200),
+    slug: z.string()
+        .min(2, "Slug must be at least 2 characters")
+        .max(100)
+        .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, "Slug must be lowercase letters, numbers, and hyphens"),
+    description: z.string().max(1000).optional().nullable(),
+    category: z.string().min(1, "Category is required"),
+    schema: templateSchemaObj.optional(),
+});
+
+export const reportTemplateUpdateSchema = z.object({
+    name: z.string().min(1).max(200).optional(),
+    slug: z.string().min(2).max(100).optional(),
+    description: z.string().max(1000).optional().nullable(),
+    category: z.string().optional().nullable(),
+    schema: templateSchemaObj.optional(),
+    is_active: z.boolean().optional(),
+});
+
+export type ReportTemplateCreateInput = z.infer<typeof reportTemplateCreateSchema>;
+export type ReportTemplateUpdateInput = z.infer<typeof reportTemplateUpdateSchema>;
+
+// --- Tenant Config Schemas ---
+
+export const statusItemSchema = z.object({
+    id: z.string().min(1).max(50).regex(/^[a-z0-9_]+$/, "Status ID must be lowercase letters, numbers, and underscores"),
+    label: z.string().min(1).max(100),
+    color: z.string().min(1).max(50),
+    is_default: z.boolean(),
+    behaviors: z.array(z.string()),
+});
+
+export const statusConfigUpdateSchema = z.object({
+    tenant_id: z.string().uuid(),
+    entity_type: z.enum(["lead", "opportunity", "job"]),
+    statuses: z.array(statusItemSchema)
+        .min(1, "At least one status is required")
+        .refine(
+            (statuses) => statuses.filter((s) => s.is_default).length === 1,
+            "Exactly one status must be marked as default"
+        ),
+});
+
+export const moduleConfigUpdateSchema = z.object({
+    tenant_id: z.string().uuid(),
+    modules: z.array(z.object({
+        module_id: z.string().min(1).max(100),
+        enabled: z.boolean(),
+    })).min(1, "At least one module is required"),
+});
+
+export type StatusItemInput = z.infer<typeof statusItemSchema>;
+export type StatusConfigUpdateInput = z.infer<typeof statusConfigUpdateSchema>;
+export type ModuleConfigUpdateInput = z.infer<typeof moduleConfigUpdateSchema>;
+
+// --- Platform Admin Schemas ---
+
+export const platformTenantCreateSchema = z.object({
+    company_name: z.string().min(1, "Company name is required"),
+    slug: z.string()
+        .min(3, "Slug must be at least 3 characters")
+        .max(48, "Slug must be 48 characters or less")
+        .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, "Slug must be lowercase letters, numbers, and hyphens only"),
+    owner_email: z.string().email("Invalid owner email"),
+    owner_name: z.string().min(1, "Owner name is required"),
+    plan: z.enum(["trial", "paid"]).optional(),
+    max_users: z.number().min(1).max(1000).optional(),
+});
+
+export const platformTenantUpdateSchema = z.object({
+    name: z.string().min(1).optional(),
+    company_name: z.string().min(1).optional(),
+    plan: z.enum(["trial", "paid"]).optional(),
+    max_users: z.number().min(1).max(1000).optional(),
+    status: z.enum(["active", "suspended"]).optional(),
+    notes: z.string().max(5000).optional().nullable(),
+    trial_ends_at: z.string().datetime().optional().nullable(),
+}).refine(data => Object.keys(data).length > 0, {
+    message: "At least one field must be provided",
+});
+
+export const platformTenantSuspendSchema = z.object({
+    action: z.enum(["suspend", "reactivate"]),
+});
+
+export type PlatformTenantCreateInput = z.infer<typeof platformTenantCreateSchema>;
+export type PlatformTenantUpdateInput = z.infer<typeof platformTenantUpdateSchema>;
+export type PlatformTenantSuspendInput = z.infer<typeof platformTenantSuspendSchema>;
 
 // --- Type Exports ---
 

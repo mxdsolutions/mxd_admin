@@ -32,7 +32,7 @@ export async function signIn(formData: FormData) {
       console.error("[signIn] Supabase error:", error.message);
       return { success: false, error: error.message };
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[signIn] Unexpected error:", err);
     return { success: false, error: "An unexpected error occurred." };
   }
@@ -84,7 +84,7 @@ export async function signUp(formData: FormData) {
     }
     
     return { success: true, message: "Check your email to confirm your account" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     return { success: false, error: "An unexpected error occurred." };
   }
 }
@@ -111,7 +111,7 @@ export async function signInWithMagicLink(formData: FormData) {
     }
     
     return { success: "Magic link sent! Check your email." };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return { error: "An unexpected error occurred." };
   }
 }
@@ -135,7 +135,7 @@ export async function resetPassword(formData: FormData) {
     }
     
     return { success: "Password reset instructions sent to your email." };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return { error: "An unexpected error occurred." };
   }
 }
@@ -157,7 +157,7 @@ export async function updatePassword(formData: FormData) {
     if (error) {
       return { error: error.message };
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     return { error: "An unexpected error occurred." };
   }
 
@@ -216,8 +216,8 @@ export async function demoSignIn() {
     }
 
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || "Demo login failed" };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : "Demo login failed" };
   }
 }
 

@@ -44,6 +44,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
     expired: { label: "Expired", color: "bg-amber-500" },
 };
 
+/** Side sheet for viewing/editing quote details, line items, and margin calculations. */
 export function QuoteSideSheet({ quote, open, onOpenChange, onUpdate }: QuoteSideSheetProps) {
     const [activeTab, setActiveTab] = useState("details");
     const [data, setData] = useState<Quote | null>(quote);

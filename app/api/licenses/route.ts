@@ -11,7 +11,7 @@ export const GET = withAuth(async (_request, { supabase }) => {
 
     if (error) return serverError();
 
-    return NextResponse.json({ licenses: data });
+    return NextResponse.json({ items: data });
 });
 
 export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
@@ -27,10 +27,10 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
 
     if (error) return serverError();
 
-    return NextResponse.json({ license: data }, { status: 201 });
+    return NextResponse.json({ item: data }, { status: 201 });
 });
 
-export const PATCH = withAuth(async (request, { supabase }) => {
+export const PATCH = withAuth(async (request, { supabase, tenantId }) => {
     const body = await request.json();
     const validation = licenseUpdateSchema.safeParse(body);
     if (!validation.success) return validationError(validation.error);
@@ -41,15 +41,16 @@ export const PATCH = withAuth(async (request, { supabase }) => {
         .from("tenant_licenses")
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq("id", id)
+        .eq("tenant_id", tenantId)
         .select()
         .single();
 
     if (error) return serverError();
 
-    return NextResponse.json({ license: data });
+    return NextResponse.json({ item: data });
 });
 
-export const DELETE = withAuth(async (request, { supabase }) => {
+export const DELETE = withAuth(async (request, { supabase, tenantId }) => {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -58,7 +59,8 @@ export const DELETE = withAuth(async (request, { supabase }) => {
     const { error } = await supabase
         .from("tenant_licenses")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("tenant_id", tenantId);
 
     if (error) return serverError();
 

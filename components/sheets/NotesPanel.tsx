@@ -136,7 +136,7 @@ export function NotesPanel({ entityType, entityId }: NotesPanelProps) {
             const res = await fetch(`/api/notes?entity_type=${entityType}&entity_id=${entityId}`);
             if (!res.ok) throw new Error();
             const data = await res.json();
-            setNotes(data.notes || []);
+            setNotes(data.items || []);
         } catch {
             toast.error("Failed to load notes");
         } finally {
@@ -162,7 +162,7 @@ export function NotesPanel({ entityType, entityId }: NotesPanelProps) {
             });
             if (!res.ok) throw new Error();
             const data = await res.json();
-            setNotes(prev => [data.note, ...prev]);
+            setNotes(prev => [data.item, ...prev]);
             setContent("");
             setMentionedIds(new Set());
             inputRef.current?.focus();

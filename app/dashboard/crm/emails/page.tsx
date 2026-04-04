@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { DashboardPage, DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardPage, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ type EmailMessage = {
 type MatchedContact = { id: string; first_name: string; last_name: string };
 
 export default function EmailsPage() {
+    usePageTitle("Emails");
     const [connected, setConnected] = useState<boolean | null>(null);
     const [messages, setMessages] = useState<EmailMessage[]>([]);
     const [matchedContacts, setMatchedContacts] = useState<Record<string, MatchedContact>>({});
@@ -77,8 +79,8 @@ export default function EmailsPage() {
             setMatchedContacts((prev) => ({ ...prev, ...data.matchedContacts }));
             setHasMore(data.hasMore);
             setNextSkip(data.nextSkip);
-        } catch (err: any) {
-            toast.error(err.message || "Failed to fetch emails");
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Failed to fetch emails");
         } finally {
             setLoading(false);
             setLoadingMore(false);
@@ -132,7 +134,6 @@ export default function EmailsPage() {
     if (connected === false) {
         return (
             <DashboardPage>
-                <DashboardHeader title="Emails" subtitle="View and manage your Outlook inbox." />
                 <div className="px-4 md:px-6 lg:px-10">
                     <div className="flex flex-col items-center justify-center py-20 text-center">
                         <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
@@ -162,27 +163,28 @@ export default function EmailsPage() {
             <ScrollableTableLayout
                 header={
                     <>
-                        <DashboardHeader title="Emails" subtitle="View and manage your Outlook inbox.">
-                            <Button size="sm" className="rounded-full" onClick={() => setShowCompose(true)}>
-                                <PlusIcon className="w-4 h-4 mr-1.5" />
-                                Compose
-                            </Button>
-                        </DashboardHeader>
-
                         <DashboardControls>
-                            <div className="relative flex-1 max-w-sm">
-                                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search emails..."
-                                    className="pl-9 rounded-full"
-                                    value={searchInput}
-                                    onChange={(e) => setSearchInput(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                />
+                            <div className="flex items-center gap-3">
+                                <div className="relative flex-1 max-w-sm">
+                                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search emails..."
+                                        className="pl-9 rounded-full"
+                                        value={searchInput}
+                                        onChange={(e) => setSearchInput(e.target.value)}
+                                        onKeyDown={handleKeyDown}
+                                    />
+                                </div>
                             </div>
-                            <Button variant="outline" size="sm" className="rounded-full" onClick={() => fetchEmails(0, search)}>
-                                Refresh
-                            </Button>
+                            <div className="flex items-center gap-3 shrink-0">
+                                <Button variant="outline" size="sm" className="rounded-full" onClick={() => fetchEmails(0, search)}>
+                                    Refresh
+                                </Button>
+                                <Button size="sm" className="rounded-full" onClick={() => setShowCompose(true)}>
+                                    <PlusIcon className="w-4 h-4 mr-1.5" />
+                                    Compose
+                                </Button>
+                            </div>
                         </DashboardControls>
                     </>
                 }

@@ -12,7 +12,7 @@ export function Logo({
     tenantLogoUrl?: string | null;
     tenantLogoDarkUrl?: string | null;
 }) {
-    const dimensions = size === 'large' ? { width: 120, height: 48 } : { width: 80, height: 32 };
+    const dimensions = size === 'large' ? { width: 120, height: 48 } : { width: 72, height: 29 };
 
     // Use tenant logo if available, otherwise fall back to default
     let src: string;

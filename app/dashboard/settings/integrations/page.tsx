@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { DashboardPage, DashboardHeader } from "@/components/dashboard/DashboardPage";
+import { DashboardPage } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ export default function IntegrationsPage() {
 }
 
 function IntegrationsContent() {
+    usePageTitle("Integrations");
     const searchParams = useSearchParams();
 
     // Outlook state
@@ -163,11 +165,6 @@ function IntegrationsContent() {
 
     return (
         <DashboardPage>
-            <DashboardHeader
-                title="Integrations"
-                subtitle="Connect external services to your workspace."
-            />
-
             <div className="px-4 md:px-6 lg:px-10 space-y-4">
                 {/* Outlook Card */}
                 <Card className="border-border shadow-none rounded-2xl">

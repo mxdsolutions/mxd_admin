@@ -1,76 +1,53 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { withAuth } from "@/app/api/_lib/handler";
 
-export const GET = withAuth(async (_request, { supabase }) => {
-    const now = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+// A PostgreSQL function get_tenant_stats(p_tenant_id uuid) exists in
+// supabase/migrations/002_stats_view.sql that calculates all of the count/sum
+// metrics below in a single query using conditional aggregation.
+// TODO: Replace with get_tenant_stats() RPC call when migration is deployed
 
+export const GET = withAuth(async (_request, { supabase, tenantId }) => {
+    const now = new Date();
+
+    // Core stats via single RPC call (replaces 14 individual queries)
+    // recentTransactions, activeJobs, and chartData are still fetched separately
     const [
-        { count: totalUsers },
-        { count: newUsers },
-        { count: activeProjects },
-        { count: totalProjects },
-        { count: activeJobs },
-        { count: totalJobs },
-        { data: completedJobs },
-        { count: openLeads },
-        { count: totalLeads },
-        { count: totalOpportunities },
-        { data: pipelineData },
-        { data: wonThisMonth },
-        { count: totalCompanies },
-        { count: totalContacts },
+        statsResult,
         recentTransactionsResult,
         activeJobsResult,
         chartData,
     ] = await Promise.all([
-        supabase.from("profiles").select("*", { count: "exact", head: true }),
-        supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo.toISOString()),
-        supabase.from("projects").select("*", { count: "exact", head: true }).neq("status", "completed"),
-        supabase.from("projects").select("*", { count: "exact", head: true }),
-        supabase.from("jobs").select("*", { count: "exact", head: true }).not("status", "in", '("Completed","Cancelled","cancelled","completed")'),
-        supabase.from("jobs").select("*", { count: "exact", head: true }),
-        supabase.from("jobs").select("amount").in("status", ["completed", "Completed"]),
-        supabase.from("leads").select("*", { count: "exact", head: true }).not("status", "in", '("converted","unqualified")'),
-        supabase.from("leads").select("*", { count: "exact", head: true }),
-        supabase.from("opportunities").select("*", { count: "exact", head: true }),
-        supabase.from("opportunities").select("value").not("stage", "in", '("closed_won","closed_lost")'),
-        supabase.from("opportunities").select("value").in("stage", ["closed_won"]).gte("updated_at", monthStart.toISOString()),
-        supabase.from("companies").select("*", { count: "exact", head: true }),
-        supabase.from("contacts").select("*", { count: "exact", head: true }),
+        supabase.rpc("get_tenant_stats", { p_tenant_id: tenantId }),
         supabase.from("jobs").select(`id, amount, status, updated_at, project:projects(title), assigned_to:profiles!jobs_assigned_to_fkey(full_name)`).order("updated_at", { ascending: false }).limit(5),
         supabase.from("jobs").select(`id, description, amount, status, scheduled_date, project:projects(title), assigned_to:profiles!jobs_assigned_to_fkey(full_name)`).not("status", "in", '("Completed","Cancelled","cancelled","completed")').order("scheduled_date", { ascending: true }).limit(10),
         buildChartData(supabase, now),
     ]);
 
-    const totalRevenue = completedJobs?.reduce((sum, job) => sum + (job.amount || 0), 0) || 0;
-    const pipelineValue = pipelineData?.reduce((sum, opp) => sum + (opp.value || 0), 0) || 0;
-    const wonRevenueThisMonth = wonThisMonth?.reduce((sum, opp) => sum + (opp.value || 0), 0) || 0;
+    const coreStats = statsResult.data || {};
 
     return NextResponse.json({
         stats: {
-            totalUsers: totalUsers || 0,
-            newUsers: newUsers || 0,
-            activeProjects: activeProjects || 0,
-            totalProjects: totalProjects || 0,
-            activeJobs: activeJobs || 0,
-            totalJobs: totalJobs || 0,
-            totalRevenue,
-            openLeads: openLeads || 0,
-            totalLeads: totalLeads || 0,
-            totalOpportunities: totalOpportunities || 0,
-            pipelineValue,
-            wonRevenueThisMonth,
-            totalCompanies: totalCompanies || 0,
-            totalContacts: totalContacts || 0,
+            totalUsers: coreStats.totalUsers || 0,
+            newUsers: coreStats.newUsers || 0,
+            activeProjects: coreStats.activeProjects || 0,
+            totalProjects: coreStats.totalProjects || 0,
+            activeJobs: coreStats.activeJobs || 0,
+            totalJobs: coreStats.totalJobs || 0,
+            totalRevenue: coreStats.totalRevenue || 0,
+            openLeads: coreStats.openLeads || 0,
+            totalLeads: coreStats.totalLeads || 0,
+            totalOpportunities: coreStats.totalOpportunities || 0,
+            pipelineValue: coreStats.pipelineValue || 0,
+            wonRevenueThisMonth: coreStats.wonRevenueThisMonth || 0,
+            totalCompanies: coreStats.totalCompanies || 0,
+            totalContacts: coreStats.totalContacts || 0,
             opportunityChart: chartData,
         },
         recentTransactions: (recentTransactionsResult.data || []).map(t => ({
             id: t.id,
-            user: t.assigned_to ? (t.assigned_to as any).full_name : "System",
-            action: `Job: ${t.project ? (t.project as any).title : "Untitled Project"}`,
+            user: t.assigned_to ? (t.assigned_to as unknown as { full_name: string })?.full_name : "System",
+            action: `Job: ${t.project ? (t.project as unknown as { title: string })?.title : "Untitled Project"}`,
             amount: `$${((t.amount as number) || 0).toFixed(2)}`,
             status: t.status || "Unknown",
             date: t.updated_at ? new Date(t.updated_at).toLocaleDateString() : "Just now"
@@ -78,8 +55,8 @@ export const GET = withAuth(async (_request, { supabase }) => {
         activeJobs: (activeJobsResult.data || []).map(j => ({
             id: j.id,
             description: j.description,
-            project: j.project ? (j.project as any).title : null,
-            assignedTo: j.assigned_to ? (j.assigned_to as any).full_name : null,
+            project: j.project ? (j.project as unknown as { title: string })?.title : null,
+            assignedTo: j.assigned_to ? (j.assigned_to as unknown as { full_name: string })?.full_name : null,
             amount: j.amount || 0,
             status: j.status || "Unknown",
             scheduledDate: j.scheduled_date,
@@ -87,7 +64,7 @@ export const GET = withAuth(async (_request, { supabase }) => {
     });
 });
 
-async function buildChartData(supabase: any, now: Date) {
+async function buildChartData(supabase: SupabaseClient, now: Date) {
     const months: { start: string; end: string; label: string }[] = [];
     for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);

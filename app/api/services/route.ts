@@ -1,17 +1,26 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/app/api/_lib/handler";
+import { parsePagination } from "@/app/api/_lib/pagination";
 import { validationError, serverError } from "@/app/api/_lib/errors";
 import { serviceSchema, serviceUpdateSchema } from "@/lib/validation";
 
-export const GET = withAuth(async (_request, { supabase }) => {
-    const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false });
+export const GET = withAuth(async (request, { supabase }) => {
+    const { limit, offset, search } = parsePagination(request);
 
+    let query = supabase
+        .from("products")
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
+
+    if (search) {
+        query = query.or(`name.ilike.%${search}%`);
+    }
+
+    const { data, error, count } = await query;
     if (error) return serverError();
 
-    return NextResponse.json({ services: data });
+    return NextResponse.json({ items: data, total: count || 0 });
 });
 
 export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
@@ -27,10 +36,10 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
 
     if (error) return serverError();
 
-    return NextResponse.json({ service: data }, { status: 201 });
+    return NextResponse.json({ item: data }, { status: 201 });
 });
 
-export const PATCH = withAuth(async (request, { supabase }) => {
+export const PATCH = withAuth(async (request, { supabase, tenantId }) => {
     const body = await request.json();
     const validation = serviceUpdateSchema.safeParse(body);
     if (!validation.success) return validationError(validation.error);
@@ -41,10 +50,11 @@ export const PATCH = withAuth(async (request, { supabase }) => {
         .from("products")
         .update(updates)
         .eq("id", id)
+        .eq("tenant_id", tenantId)
         .select()
         .single();
 
     if (error) return serverError();
 
-    return NextResponse.json({ service: data });
+    return NextResponse.json({ item: data });
 });

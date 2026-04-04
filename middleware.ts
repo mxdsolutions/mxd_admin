@@ -4,6 +4,33 @@ import { NextResponse, type NextRequest } from 'next/server'
 // In-memory tenant cache (module scope persists across requests in the same worker)
 const tenantCache = new Map<string, { tenantId: string; slug: string; expiresAt: number }>();
 const CACHE_TTL_MS = 60_000; // 60 seconds
+const CACHE_MAX_SIZE = 500;
+
+function getCachedTenant(key: string) {
+    const cached = tenantCache.get(key);
+    if (!cached) return null;
+    if (cached.expiresAt <= Date.now()) {
+        tenantCache.delete(key);
+        return null;
+    }
+    return cached;
+}
+
+function setCachedTenant(key: string, tenantId: string, slug: string) {
+    // Evict expired entries if cache is getting large
+    if (tenantCache.size >= CACHE_MAX_SIZE) {
+        const now = Date.now();
+        for (const [k, v] of tenantCache) {
+            if (v.expiresAt <= now) tenantCache.delete(k);
+        }
+        // If still too large after evicting expired, clear oldest half
+        if (tenantCache.size >= CACHE_MAX_SIZE) {
+            const keys = [...tenantCache.keys()];
+            for (let i = 0; i < keys.length / 2; i++) tenantCache.delete(keys[i]);
+        }
+    }
+    tenantCache.set(key, { tenantId, slug, expiresAt: Date.now() + CACHE_TTL_MS });
+}
 
 // Platform domains that are NOT tenant custom domains
 const PLATFORM_DOMAINS = [
@@ -11,10 +38,84 @@ const PLATFORM_DOMAINS = [
     'localhost',
     'localhost:3000',
     'localhost:3001',
+    'localhost:3002',
 ].filter(Boolean);
 
 function isPlatformDomain(hostname: string): boolean {
     return PLATFORM_DOMAINS.some(d => hostname === d || hostname.endsWith(`.${d}`));
+}
+
+type SupabaseMiddlewareClient = ReturnType<typeof createServerClient>
+
+interface TenantInfo {
+    tenantId: string
+    slug: string
+}
+
+/** Look up tenant by verified custom domain, with caching. */
+async function resolveCustomDomainTenant(
+    supabase: SupabaseMiddlewareClient,
+    hostname: string
+): Promise<TenantInfo | null> {
+    const cached = getCachedTenant(`domain:${hostname}`)
+    if (cached) {
+        return { tenantId: cached.tenantId, slug: cached.slug }
+    }
+
+    const { data: tenant } = await supabase
+        .from('tenants')
+        .select('id, slug')
+        .eq('custom_domain', hostname)
+        .eq('domain_verified', true)
+        .single()
+
+    if (tenant) {
+        setCachedTenant(`domain:${hostname}`, tenant.id, tenant.slug)
+        return { tenantId: tenant.id, slug: tenant.slug }
+    }
+
+    return null
+}
+
+/** Look up tenant by subdomain (e.g. companyslug.platform.com), with caching. */
+async function resolveSubdomainTenant(
+    supabase: SupabaseMiddlewareClient,
+    host: string
+): Promise<TenantInfo | null> {
+    const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'admin.mxdsolutions.com.au'
+    if (!host.endsWith(`.${platformDomain}`) || host === platformDomain) {
+        return null
+    }
+
+    const subdomain = host.replace(`.${platformDomain}`, '').split(':')[0]
+    if (!subdomain || subdomain === 'www') {
+        return null
+    }
+
+    const cached = getCachedTenant(`slug:${subdomain}`)
+    if (cached) {
+        return { tenantId: cached.tenantId, slug: cached.slug }
+    }
+
+    const { data: tenant } = await supabase
+        .from('tenants')
+        .select('id, slug')
+        .eq('slug', subdomain)
+        .eq('status', 'active')
+        .single()
+
+    if (tenant) {
+        setCachedTenant(`slug:${subdomain}`, tenant.id, tenant.slug)
+        return { tenantId: tenant.id, slug: tenant.slug }
+    }
+
+    return null
+}
+
+/** Extract tenant ID from JWT app_metadata claims. */
+function resolveTenantFromJWT(claims: Record<string, unknown>): string | null {
+    const appMetadata = claims.app_metadata as Record<string, string> | undefined
+    return appMetadata?.active_tenant_id || null
 }
 
 export async function middleware(request: NextRequest) {
@@ -61,71 +162,27 @@ export async function middleware(request: NextRequest) {
 
         // --- Tenant Resolution ---
         const hostname = request.headers.get('host')?.replace(/:\d+$/, '') || ''
+        const fullHost = request.headers.get('host') || ''
         let tenantId: string | null = null
         let tenantSlug: string | null = null
 
         if (!isPlatformDomain(hostname)) {
-            // Custom domain: look up tenant by domain
-            const cached = tenantCache.get(`domain:${hostname}`)
-            if (cached && cached.expiresAt > Date.now()) {
-                tenantId = cached.tenantId
-                tenantSlug = cached.slug
-            } else {
-                const { data: tenant } = await supabase
-                    .from('tenants')
-                    .select('id, slug')
-                    .eq('custom_domain', hostname)
-                    .eq('domain_verified', true)
-                    .single()
-
-                if (tenant) {
-                    tenantId = tenant.id
-                    tenantSlug = tenant.slug
-                    tenantCache.set(`domain:${hostname}`, {
-                        tenantId: tenant.id,
-                        slug: tenant.slug,
-                        expiresAt: Date.now() + CACHE_TTL_MS,
-                    })
-                }
+            const result = await resolveCustomDomainTenant(supabase, hostname)
+            if (result) {
+                tenantId = result.tenantId
+                tenantSlug = result.slug
             }
         } else {
-            // Check for subdomain (e.g., companyslug.platform.com)
-            const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'admin.mxdsolutions.com.au'
-            const fullHost = request.headers.get('host') || ''
-            if (fullHost.endsWith(`.${platformDomain}`) && fullHost !== platformDomain) {
-                const subdomain = fullHost.replace(`.${platformDomain}`, '').split(':')[0]
-                if (subdomain && subdomain !== 'www') {
-                    const cached = tenantCache.get(`slug:${subdomain}`)
-                    if (cached && cached.expiresAt > Date.now()) {
-                        tenantId = cached.tenantId
-                        tenantSlug = cached.slug
-                    } else {
-                        const { data: tenant } = await supabase
-                            .from('tenants')
-                            .select('id, slug')
-                            .eq('slug', subdomain)
-                            .eq('status', 'active')
-                            .single()
-
-                        if (tenant) {
-                            tenantId = tenant.id
-                            tenantSlug = tenant.slug
-                            tenantCache.set(`slug:${subdomain}`, {
-                                tenantId: tenant.id,
-                                slug: tenant.slug,
-                                expiresAt: Date.now() + CACHE_TTL_MS,
-                            })
-                        }
-                    }
-                }
+            const result = await resolveSubdomainTenant(supabase, fullHost)
+            if (result) {
+                tenantId = result.tenantId
+                tenantSlug = result.slug
             }
         }
 
         // Fall back to JWT claims for tenant
         if (!tenantId && isAuthenticated && data?.claims) {
-            tenantId = (data.claims as Record<string, unknown>).app_metadata
-                ? ((data.claims as Record<string, unknown>).app_metadata as Record<string, string>)?.active_tenant_id || null
-                : null
+            tenantId = resolveTenantFromJWT(data.claims as Record<string, unknown>)
         }
 
         // Inject tenant context headers
@@ -140,11 +197,25 @@ export async function middleware(request: NextRequest) {
         const isDashboard = request.nextUrl.pathname.startsWith('/dashboard')
         const isOnboarding = request.nextUrl.pathname.startsWith('/onboarding')
         const isPlatformAdmin = request.nextUrl.pathname.startsWith('/platform-admin')
+        const isReport = request.nextUrl.pathname.startsWith('/report')
 
-        if (!isAuthenticated && (isDashboard || isOnboarding || isPlatformAdmin)) {
+        if (!isAuthenticated && (isDashboard || isOnboarding || isPlatformAdmin || isReport)) {
             const url = request.nextUrl.clone()
             url.pathname = '/'
             return NextResponse.redirect(url)
+        }
+
+        // Platform admin gate: only users with is_platform_admin can access /platform-admin/*
+        // Uses getUser() (server call) instead of JWT claims because app_metadata
+        // updates may not be reflected in the cached JWT token immediately.
+        if (isPlatformAdmin && isAuthenticated) {
+            const { data: { user } } = await supabase.auth.getUser();
+            const isAdmin = user?.app_metadata?.is_platform_admin === true;
+            if (!isAdmin) {
+                const url = request.nextUrl.clone()
+                url.pathname = '/dashboard'
+                return NextResponse.redirect(url)
+            }
         }
 
         const isAuthRoute =

@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { DashboardPage, DashboardHeader, DashboardMetrics } from "@/components/dashboard/DashboardPage";
+import { DashboardPage, DashboardMetrics } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import {
     tableBase,
     tableHead,
@@ -81,12 +82,10 @@ export default function DashboardOverview() {
         },
     ];
 
+    usePageTitle("Operations Overview");
+
     return (
         <DashboardPage className="space-y-6">
-            <DashboardHeader
-                title="Operations Overview"
-                subtitle="Jobs, projects, and revenue at a glance."
-            />
 
             {/* Metrics Grid */}
             {loading ? (

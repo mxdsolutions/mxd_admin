@@ -1,4 +1,6 @@
-# MXD Admin — Agent Guide
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Multi-tenant CRM + operations dashboard.
 **Stack:** Next.js 15 (App Router) / React 19 / Supabase / Tailwind v4 / SWR / Zod / Radix UI
@@ -10,6 +12,7 @@ Multi-tenant CRM + operations dashboard.
 ```bash
 npm run dev        # starts dev server on localhost:3002
 npm run build      # production build
+npm run start      # start production server
 npm run lint       # ESLint
 ```
 
@@ -26,11 +29,10 @@ app/
   api/
     _lib/                 # Shared API utilities (withAuth, errors, pagination, line-items)
     {entity}/route.ts     # API routes per entity
+    platform-admin/       # Cross-tenant platform admin API routes
   auth/callback/          # Supabase auth callback
-  dashboard/
-    crm/                  # Leads, opportunities, companies, contacts, emails
-    operations/           # Jobs, services
-    settings/             # Company (branding, domain), roles, subscription
+  dashboard/              # Tenant-scoped dashboard (CRM, Operations, Finance, Settings)
+  platform-admin/         # Platform admin UI (cross-tenant management)
   onboarding/             # Tenant onboarding flow
 components/
   dashboard/              # DashboardPage, DashboardHeader, DashboardControls
@@ -62,7 +64,7 @@ docs/
 
 ### API Routes
 
-All routes use the shared `withAuth` wrapper and standardised error helpers:
+All tenant-scoped routes use `withAuth`; platform admin routes use `withPlatformAuth`:
 
 ```typescript
 import { withAuth } from "@/app/api/_lib/handler";
@@ -102,6 +104,25 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
 - Use `parsePagination()` for GET routes — defaults: limit=50, max=200
 - Use `serverError()`, `validationError()`, `notFoundError()` from `_lib/errors.ts`
 - Always include `tenant_id` on inserts
+
+### Platform Admin API Routes
+
+For cross-tenant operations (e.g. managing all tenants, platform-wide stats):
+
+```typescript
+import { withPlatformAuth } from "@/app/api/_lib/handler";
+
+export const GET = withPlatformAuth(async (request, { adminClient, user }) => {
+  // adminClient bypasses RLS — use for cross-tenant queries
+  // No tenantId in context — platform admin operates across all tenants
+  const { data, error } = await adminClient.from("tenants").select("*");
+  // ...
+});
+```
+
+- `withPlatformAuth()` provides `{ supabase, user, adminClient }` (no `tenantId`)
+- Gates on `user.app_metadata.is_platform_admin === true`
+- `adminClient` is a service-role Supabase client that bypasses RLS
 
 ### Supabase Clients
 
@@ -145,21 +166,63 @@ Add new hooks here when creating new entities. `defaultConfig` disables revalida
 
 ### Dashboard Pages
 
-Use the modular layout components:
+Page titles display in the global sticky header via context. Controls (search, filters, action buttons) go in a single `DashboardControls` row:
 
 ```tsx
-import { DashboardPage, DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 
-<DashboardPage>
-  <DashboardHeader title="Things" subtitle="Manage things">
-    <Button onClick={...}>Add Thing</Button>
-  </DashboardHeader>
-  <DashboardControls>
-    <SearchInput ... />
-  </DashboardControls>
-  {/* Table or Kanban content */}
-</DashboardPage>
+export default function ThingsPage() {
+    usePageTitle("Things");  // Sets title in global header
+    // ...
+    return (
+        <ScrollableTableLayout
+            header={
+                <DashboardControls>
+                    <div className="flex items-center gap-3">
+                        <SearchInput ... />
+                        <FilterDropdown ... />
+                    </div>
+                    <Button onClick={...}>Add Thing</Button>
+                </DashboardControls>
+            }
+        >
+            {/* Table or Kanban content */}
+        </ScrollableTableLayout>
+    );
+}
 ```
+
+**Rules:**
+- Always call `usePageTitle("Title")` — do **not** render page titles in the page body
+- `DashboardControls` uses `justify-between`: left side = search + filters, right side = action button
+- Pages without controls (overview/settings) just call `usePageTitle()` with no `DashboardControls`
+- Do **not** use `DashboardHeader` — it is deprecated
+
+### Filters
+
+Table filters (e.g. status) **must use dropdown selects**, not inline pill buttons. Use the Radix `Select` component from `components/ui/select.tsx`:
+
+```tsx
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+
+<Select value={statusFilter} onValueChange={setStatusFilter}>
+    <SelectTrigger className="w-[140px] rounded-xl border-border/50 h-10">
+        <SelectValue placeholder="Status" />
+    </SelectTrigger>
+    <SelectContent>
+        <SelectItem value="All">All Statuses</SelectItem>
+        <SelectItem value="draft">Draft</SelectItem>
+        {/* ... */}
+    </SelectContent>
+</Select>
+```
+
+**Rules:**
+- Place dropdowns next to the search input inside `DashboardControls`
+- Use `rounded-xl border-border/50 h-10` on `SelectTrigger` to match the search input style
+- First option should be the "All" unfiltered state (e.g. "All Statuses")
+- Do **not** use filter pill buttons for status/type filters
 
 ### Modals
 
@@ -181,11 +244,44 @@ Use `SideSheetLayout` from `features/side-sheets/`:
 
 ### Tenant & Permissions
 
-- Middleware resolves tenant from domain/subdomain/JWT → injects `x-tenant-id` header
+- Middleware resolves tenant from custom domain → subdomain → JWT claims fallback, with in-memory caching (60s TTL)
+- `/platform-admin/*` routes gated by `is_platform_admin` in `app_metadata` (checked via `getUser()`, not JWT claims)
 - Server-side: `getTenantId()` from `lib/tenant.ts`
 - Client-side: `useTenant()` and `usePermission()` from `lib/tenant-context.tsx`
 - Roles: Owner > Admin > Manager > Member > Viewer
 - Check permissions: `hasPermission(userId, tenantId, "crm.leads", "write")`
+
+### Server Actions
+
+Server actions live in `app/actions/` for auth and tenant operations:
+
+```typescript
+"use server";
+import { createClient } from "@/lib/supabase/server";
+
+export async function myAction(formData: FormData) {
+  try {
+    const supabase = await createClient();
+    // ... action logic
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : "An unexpected error occurred" };
+  }
+}
+```
+
+**When to use server actions vs API routes:**
+- Server actions: auth flows, form submissions, one-off mutations that don't need REST endpoints
+- API routes: CRUD operations that SWR hooks consume, integrations, webhooks
+
+### Route Constants
+
+Route paths are defined in `lib/routes.ts` — always import from there instead of using string literals:
+
+```typescript
+import { ROUTES } from "@/lib/routes";
+router.push(ROUTES.CRM_LEADS);
+```
 
 ---
 
@@ -207,11 +303,13 @@ When adding a new entity (e.g. "invoices"):
 
 See `DESIGN_SYSTEM.md` for full tokens. Key rules:
 
+- **Tailwind v4** — uses `@theme` block in `globals.css` with CSS variables, not a `tailwind.config` file
 - Use `cn()` from `lib/utils` for conditional classes — never inline ternaries in className
 - Use Heroicons (`@heroicons/react/24/outline`) for dashboard icons
 - Buttons: `rounded-full`. Cards: `rounded-2xl border bg-card shadow-sm`
 - Spacing: `gap-3` between cards, `space-y-6` between sections
 - Use design system tokens from `lib/design-system.ts` for tables, typography
+- Toasts: `sonner`. Animations: `framer-motion`. Charts: `recharts`. PDFs: `@react-pdf/renderer`
 
 ---
 
@@ -249,5 +347,7 @@ Each audit has:
 ## Testing
 
 - **Framework:** Vitest + Testing Library (configured in `vitest.config.ts`)
-- **Run:** `npx vitest` or `npx vitest run`
+- **Run all:** `npx vitest run`
+- **Run one file:** `npx vitest run path/to/file.test.ts`
+- **Watch mode:** `npx vitest`
 - Test files go next to source: `route.test.ts`, `component.test.tsx`

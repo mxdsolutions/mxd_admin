@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { CreateCompanyModal } from "./CreateCompanyModal";
 import { toast } from "sonner";
+import { useCompanyOptions } from "@/lib/swr";
 
 interface CreateContactModalProps {
     open: boolean;
@@ -18,6 +19,7 @@ interface CreateContactModalProps {
 
 type CompanyOption = { id: string; name: string };
 
+/** Modal for creating a new contact. Optionally pre-selects a company via `defaultCompanyId`. */
 export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompanyId }: CreateContactModalProps) {
     const [saving, setSaving] = useState(false);
     const [firstName, setFirstName] = useState("");
@@ -26,23 +28,12 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
     const [phone, setPhone] = useState("");
     const [jobTitle, setJobTitle] = useState("");
     const [companyId, setCompanyId] = useState(defaultCompanyId || "");
-    const [companies, setCompanies] = useState<CompanyOption[]>([]);
     const [companySearch, setCompanySearch] = useState("");
     const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
     const [showCreateCompany, setShowCreateCompany] = useState(false);
 
-    useEffect(() => {
-        if (open) {
-            fetch("/api/companies")
-                .then(r => r.json())
-                .then(d => setCompanies(d.companies || []))
-                .catch(() => { });
-        }
-    }, [open]);
-
-    useEffect(() => {
-        if (defaultCompanyId) setCompanyId(defaultCompanyId);
-    }, [defaultCompanyId]);
+    const { data: companyData, mutate: refreshCompanies } = useCompanyOptions(open);
+    const companies: CompanyOption[] = companyData?.items || [];
 
     const selectedCompany = companies.find(c => c.id === companyId);
     const filteredCompanies = companies.filter(c =>
@@ -80,7 +71,7 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
             if (!res.ok) throw new Error("Failed to create contact");
             const data = await res.json();
             toast.success("Contact created");
-            onCreated?.(data.contact);
+            onCreated?.(data.item);
             reset();
             onOpenChange(false);
         } catch {
@@ -226,7 +217,7 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
                     open={showCreateCompany}
                     onOpenChange={setShowCreateCompany}
                     onCreated={(company) => {
-                        setCompanies(prev => [company, ...prev]);
+                        refreshCompanies();
                         setCompanyId(company.id);
                         setCompanySearch("");
                     }}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
 import {
     tableBase,
@@ -10,12 +11,10 @@ import {
     tableRow,
     tableCell,
     tableCellMuted,
-    filterPillBase,
-    filterPillActive,
-    filterPillInactive,
 } from "@/lib/design-system";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { cn, formatCurrency, timeAgo } from "@/lib/utils";
 import {
     MagnifyingGlassIcon,
@@ -51,6 +50,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function InvoicesPage() {
+    usePageTitle("Invoices");
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("All");
     const [createOpen, setCreateOpen] = useState(false);
@@ -74,17 +74,8 @@ export default function InvoicesPage() {
             <ScrollableTableLayout
                 header={
                     <>
-                        <DashboardHeader
-                            title="Invoices"
-                            subtitle="Manage invoices and billing."
-                        >
-                            <Button className="rounded-full px-6 shrink-0" onClick={() => setCreateOpen(true)}>
-                                <PlusIcon className="w-4 h-4 mr-2" />
-                                Add Invoice
-                            </Button>
-                        </DashboardHeader>
                         <DashboardControls>
-                            <div className="flex w-full gap-3 max-w-lg relative items-center">
+                            <div className="flex items-center gap-3">
                                 <div className="relative flex-1 max-w-sm">
                                     <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                     <Input
@@ -94,21 +85,23 @@ export default function InvoicesPage() {
                                         onChange={(e) => setSearch(e.target.value)}
                                     />
                                 </div>
-                                <div className="flex gap-1.5">
-                                    {["All", "draft", "submitted", "authorised", "paid", "voided"].map((s) => (
-                                        <button
-                                            key={s}
-                                            onClick={() => setStatusFilter(s)}
-                                            className={cn(
-                                                filterPillBase,
-                                                statusFilter === s ? filterPillActive : filterPillInactive
-                                            )}
-                                        >
-                                            {s === "All" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
-                                        </button>
-                                    ))}
-                                </div>
+                                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                    <SelectTrigger className="w-[140px] rounded-xl border-border/50 h-10">
+                                        <SelectValue placeholder="Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {["All", "draft", "submitted", "authorised", "paid", "voided"].map((s) => (
+                                            <SelectItem key={s} value={s}>
+                                                {s === "All" ? "All Statuses" : s.charAt(0).toUpperCase() + s.slice(1)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
+                            <Button className="rounded-full px-6 shrink-0" onClick={() => setCreateOpen(true)}>
+                                <PlusIcon className="w-4 h-4 mr-2" />
+                                Add Invoice
+                            </Button>
                         </DashboardControls>
                     </>
                 }

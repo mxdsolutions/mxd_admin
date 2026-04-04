@@ -45,7 +45,7 @@ export function CreateServiceModal({ open, onOpenChange, onCreated }: CreateServ
             if (!res.ok) throw new Error("Failed to create service");
             const data = await res.json();
             toast.success("Service created");
-            onCreated?.(data.service);
+            onCreated?.(data.item);
             reset();
             onOpenChange(false);
         } catch {

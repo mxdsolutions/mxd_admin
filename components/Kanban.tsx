@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 export type KanbanItem = {
     id: string;
     title: string;
-    [key: string]: any;
+    [key: string]: unknown;
 };
 
 export type KanbanColumn = {
@@ -61,6 +61,7 @@ function SkeletonCard() {
     );
 }
 
+/** Generic drag-and-drop Kanban board. Renders items in columns with drag-to-move support. */
 export function Kanban<T extends KanbanItem>({
     items,
     columns,

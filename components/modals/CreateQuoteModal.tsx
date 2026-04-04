@@ -83,11 +83,11 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
         if (open) {
             fetch("/api/contacts?limit=200")
                 .then(r => r.json())
-                .then(d => setContacts(d.contacts || []))
+                .then(d => setContacts(d.items || []))
                 .catch(() => {});
             fetch("/api/companies")
                 .then(r => r.json())
-                .then(d => setCompanies(d.companies || []))
+                .then(d => setCompanies(d.items || []))
                 .catch(() => {});
         }
     }, [open]);

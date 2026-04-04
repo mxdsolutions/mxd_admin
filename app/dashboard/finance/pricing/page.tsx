@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
 import {
     tableBase,
@@ -38,6 +39,7 @@ type PricingItem = {
 const PAGE_SIZE = 20;
 
 export default function PricingPage() {
+    usePageTitle("Pricing");
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [tradeFilter, setTradeFilter] = useState<string>("All");
@@ -68,13 +70,9 @@ export default function PricingPage() {
         <ScrollableTableLayout
             header={
                 <>
-                    <DashboardHeader
-                        title="Pricing"
-                        subtitle={`${total.toLocaleString()} items in pricing matrix.`}
-                    />
                     <DashboardControls>
-                        <div className="flex w-full gap-3 max-w-sm relative">
-                            <div className="relative flex-1">
+                        <div className="flex items-center gap-3">
+                            <div className="relative flex-1 max-w-sm">
                                 <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     placeholder="Search item, trade, category..."

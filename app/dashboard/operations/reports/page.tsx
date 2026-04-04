@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
 import {
     tableBase,
@@ -10,13 +12,11 @@ import {
     tableRow,
     tableCell,
     tableCellMuted,
-    filterPillBase,
-    filterPillActive,
-    filterPillInactive,
 } from "@/lib/design-system";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { cn, timeAgo } from "@/lib/utils";
 import {
     MagnifyingGlassIcon,
@@ -65,6 +65,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function ReportsPage() {
+    const searchParams = useSearchParams();
     const [search, setSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState<string>("All");
     const [createOpen, setCreateOpen] = useState(false);
@@ -73,54 +74,56 @@ export default function ReportsPage() {
     const { data, isLoading, mutate } = useReports();
     const allReports: Report[] = data?.items || [];
 
+    // Auto-open side sheet from ?report=<id> query param
+    useEffect(() => {
+        const reportId = searchParams.get("report");
+        if (reportId && allReports.length > 0 && !selectedReport) {
+            const found = allReports.find((r) => r.id === reportId);
+            if (found) setSelectedReport(found);
+        }
+    }, [searchParams, allReports, selectedReport]);
+
     const reports = allReports.filter(r => {
         const matchesSearch = !search || r.title.toLowerCase().includes(search.toLowerCase());
         const matchesType = typeFilter === "All" || r.type === typeFilter;
         return matchesSearch && matchesType;
     });
 
+    usePageTitle("Reports");
+
     return (
     <>
         <ScrollableTableLayout
             header={
-                <>
-                    <DashboardHeader
-                        title="Reports"
-                        subtitle="Manage construction reports and assessments."
-                    >
-                        <Button className="rounded-full px-6 shrink-0" onClick={() => setCreateOpen(true)}>
-                            <PlusIcon className="w-4 h-4 mr-2" />
-                            New Report
-                        </Button>
-                    </DashboardHeader>
-                    <DashboardControls>
-                        <div className="flex w-full gap-3 relative items-center flex-wrap">
-                            <div className="relative flex-1 max-w-sm">
-                                <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search reports..."
-                                    className="pl-9 rounded-xl border-border/50"
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex gap-1.5 flex-wrap">
-                                {REPORT_TYPES.map(t => (
-                                    <button
-                                        key={t}
-                                        onClick={() => setTypeFilter(t)}
-                                        className={cn(
-                                            filterPillBase,
-                                            typeFilter === t ? filterPillActive : filterPillInactive
-                                        )}
-                                    >
-                                        {t === "All" ? "All" : TYPE_LABELS[t] || t}
-                                    </button>
-                                ))}
-                            </div>
+                <DashboardControls>
+                    <div className="flex items-center gap-3">
+                        <div className="relative flex-1 max-w-sm">
+                            <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                placeholder="Search reports..."
+                                className="pl-9 rounded-xl border-border/50"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
                         </div>
-                    </DashboardControls>
-                </>
+                        <Select value={typeFilter} onValueChange={setTypeFilter}>
+                            <SelectTrigger className="w-[140px] rounded-xl border-border/50 h-10">
+                                <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {REPORT_TYPES.map((t) => (
+                                    <SelectItem key={t} value={t}>
+                                        {t === "All" ? "All Types" : TYPE_LABELS[t] || t}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Button className="rounded-full px-6 shrink-0" onClick={() => setCreateOpen(true)}>
+                        <PlusIcon className="w-4 h-4 mr-2" />
+                        New Report
+                    </Button>
+                </DashboardControls>
             }
         >
             {isLoading ? (

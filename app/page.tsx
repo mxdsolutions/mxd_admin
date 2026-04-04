@@ -39,8 +39,8 @@ function AuthContent() {
         router.refresh();
         router.push("/dashboard/operations/overview");
       }
-    } catch (err: any) {
-      toast.error(err.message || "An unexpected error occurred");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +70,7 @@ function AuthContent() {
       } else {
         toast.success("Password reset email sent! Please check your inbox.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Failed to send reset email.");
     } finally {
       setIsLoading(false);

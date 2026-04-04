@@ -6,6 +6,8 @@ import { opportunitySchema, opportunityUpdateSchema } from "@/lib/validation";
 
 export const GET = withAuth(async (request, { supabase }) => {
     const { limit, offset, search } = parsePagination(request);
+    const { searchParams } = new URL(request.url);
+    const stage = searchParams.get("stage");
 
     let query = supabase
         .from("opportunities")
@@ -36,10 +38,12 @@ export const GET = withAuth(async (request, { supabase }) => {
         query = query.or(`title.ilike.%${search}%`);
     }
 
+    if (stage) query = query.eq("stage", stage);
+
     const { data, error, count } = await query;
     if (error) return serverError();
 
-    return NextResponse.json({ opportunities: data, total: count || 0 });
+    return NextResponse.json({ items: data, total: count || 0 });
 });
 
 export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
@@ -55,10 +59,10 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
 
     if (error) return serverError();
 
-    return NextResponse.json({ opportunity: data }, { status: 201 });
+    return NextResponse.json({ item: data }, { status: 201 });
 });
 
-export const PATCH = withAuth(async (request, { supabase }) => {
+export const PATCH = withAuth(async (request, { supabase, tenantId }) => {
     const body = await request.json();
     const validation = opportunityUpdateSchema.safeParse(body);
     if (!validation.success) return validationError(validation.error);
@@ -69,10 +73,11 @@ export const PATCH = withAuth(async (request, { supabase }) => {
         .from("opportunities")
         .update(updates)
         .eq("id", id)
+        .eq("tenant_id", tenantId)
         .select()
         .single();
 
     if (error) return serverError();
 
-    return NextResponse.json({ opportunity: data });
+    return NextResponse.json({ item: data });
 });

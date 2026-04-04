@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
 import {
     tableBase,
@@ -40,7 +41,7 @@ type Project = {
 export default function ProjectsPage() {
     const [search, setSearch] = useState("");
     const { data, isLoading: loading, mutate } = useProjects();
-    const projects: Project[] = data?.projects || [];
+    const projects: Project[] = data?.items || [];
 
     const fetchProjects = () => mutate();
 
@@ -50,21 +51,13 @@ export default function ProjectsPage() {
         project.homeowner?.full_name.toLowerCase().includes(search.toLowerCase())
     );
 
+    usePageTitle("Projects");
+
     return (
         <ScrollableTableLayout
             header={
-                <>
-                    <DashboardHeader
-                        title="Projects"
-                        subtitle="View and manage all service projects."
-                    >
-                        <Button className="rounded-full px-6 shrink-0">
-                            <PlusIcon className="w-4 h-4 mr-2" />
-                            Add Project
-                        </Button>
-                    </DashboardHeader>
-
-                    <DashboardControls>
+                <DashboardControls>
+                    <div className="flex items-center gap-3">
                         <div className="relative flex-1 max-w-sm">
                             <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                             <Input
@@ -74,8 +67,12 @@ export default function ProjectsPage() {
                                 onChange={(e) => setSearch(e.target.value)}
                             />
                         </div>
-                    </DashboardControls>
-                </>
+                    </div>
+                    <Button className="rounded-full px-6 shrink-0">
+                        <PlusIcon className="w-4 h-4 mr-2" />
+                        Add Project
+                    </Button>
+                </DashboardControls>
             }
         >
             <table className={tableBase + " border-collapse min-w-full"}>

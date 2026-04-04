@@ -12,6 +12,7 @@ const inquirySchema = z.object({
     services: z.string().max(1000).optional(),
     message: z.string().max(5000).optional(),
     source: z.string().max(100).optional(),
+    tenant_slug: z.string().min(1).max(100),
     // Honeypot — must be empty
     _gotcha: z.string().max(0).optional(),
 });
@@ -51,17 +52,31 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true }, { status: 200 });
     }
 
-    const { name, company, email, phone, services, message, source } = validation.data;
+    const { name, company, email, phone, services, message, source, tenant_slug } = validation.data;
     const domain = extractDomain(email);
     const { first_name, last_name } = splitName(name);
 
     const supabase = await createAdminClient();
+
+    // Resolve tenant from slug
+    const { data: tenant } = await supabase
+        .from("tenants")
+        .select("id")
+        .eq("slug", tenant_slug)
+        .single();
+
+    if (!tenant) {
+        return NextResponse.json({ error: "Invalid tenant" }, { status: 400 });
+    }
+
+    const tenantId = tenant.id;
 
     // 1. Find or create contact by phone
     const { data: existingContact } = await supabase
         .from("contacts")
         .select("id")
         .eq("phone", phone)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
 
     let contactId: string;
@@ -78,6 +93,7 @@ export async function POST(request: Request) {
                 phone,
                 status: "active",
                 created_by: MATT_USER_ID,
+                tenant_id: tenantId,
             })
             .select("id")
             .single();
@@ -97,6 +113,7 @@ export async function POST(request: Request) {
             .from("companies")
             .select("id")
             .ilike("website", `%${domain}%`)
+            .eq("tenant_id", tenantId)
             .maybeSingle();
 
         if (existingCompany) {
@@ -110,6 +127,7 @@ export async function POST(request: Request) {
                     email,
                     status: "active",
                     created_by: MATT_USER_ID,
+                    tenant_id: tenantId,
                 })
                 .select("id")
                 .single();
@@ -154,6 +172,7 @@ export async function POST(request: Request) {
             company_id: companyId,
             assigned_to: MATT_USER_ID,
             created_by: MATT_USER_ID,
+            tenant_id: tenantId,
         })
         .select("id")
         .single();
@@ -170,6 +189,7 @@ export async function POST(request: Request) {
         action: "created",
         changes: { source: "website_inquiry", services, original_message: message },
         performed_by: MATT_USER_ID,
+        tenant_id: tenantId,
     });
 
     const corsHeaders = {

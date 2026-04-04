@@ -45,7 +45,7 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
     return NextResponse.json({ item: data }, { status: 201 });
 });
 
-export const PATCH = withAuth(async (request, { supabase }) => {
+export const PATCH = withAuth(async (request, { supabase, tenantId }) => {
     const body = await request.json();
     const validation = reportUpdateSchema.safeParse(body);
     if (!validation.success) return validationError(validation.error);
@@ -56,6 +56,7 @@ export const PATCH = withAuth(async (request, { supabase }) => {
         .from("reports")
         .update(updates)
         .eq("id", id)
+        .eq("tenant_id", tenantId)
         .select()
         .single();
 

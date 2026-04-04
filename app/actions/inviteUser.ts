@@ -57,7 +57,7 @@ export async function inviteUser(
         }, { onConflict: "tenant_id,email" });
 
         return { success: true, error: null, data };
-    } catch (err: any) {
-        return { success: false, error: err?.message || "Something went wrong" };
+    } catch (err: unknown) {
+        return { success: false, error: err instanceof Error ? err.message : "Something went wrong" };
     }
 }

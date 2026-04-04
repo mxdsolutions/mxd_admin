@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { DetailFields, LinkedEntityCard } from "./DetailFields";
@@ -9,6 +9,8 @@ import { ActivityTimeline } from "./ActivityTimeline";
 import { SideSheetLayout } from "@/features/side-sheets/SideSheetLayout";
 import { LineItemsTable } from "@/features/line-items/LineItemsTable";
 import { createClient } from "@/lib/supabase/client";
+import { useProfiles, useStatusConfig } from "@/lib/swr";
+import { DEFAULT_OPPORTUNITY_STAGES, toStatusConfig, hasBehavior } from "@/lib/status-config";
 
 type Opportunity = {
     id: string;
@@ -49,29 +51,31 @@ interface OpportunitySideSheetProps {
     onStageChange?: (opportunity: Opportunity, newStage: string) => void;
 }
 
-const stageConfig: Record<string, { label: string; color: string }> = {
-    appt_booked: { label: "Appt Booked", color: "bg-blue-500" },
-    proposal_sent: { label: "Proposal Sent", color: "bg-amber-500" },
-    negotiation: { label: "Negotiation", color: "bg-indigo-500" },
-    closed_won: { label: "Closed Won", color: "bg-emerald-500" },
-    closed_lost: { label: "Closed Lost", color: "bg-rose-400" },
-};
+// Stage config is loaded dynamically from tenant config
 
+/** Side sheet for viewing/editing opportunity details, line items, and stage management. */
 export function OpportunitySideSheet({ opportunity, open, onOpenChange, onUpdate, onStageChange }: OpportunitySideSheetProps) {
     const [activeTab, setActiveTab] = useState("details");
     const [data, setData] = useState<Opportunity | null>(opportunity);
-    const [users, setUsers] = useState<{ value: string; label: string }[]>([]);
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
     const [services, setServices] = useState<Service[]>([]);
+    const { data: stageData } = useStatusConfig("opportunity");
+    const stageConfig = toStatusConfig(stageData?.statuses ?? DEFAULT_OPPORTUNITY_STAGES);
+    const stages = stageData?.statuses ?? DEFAULT_OPPORTUNITY_STAGES;
+    const { data: profilesData } = useProfiles();
+    const users: { value: string; label: string }[] = useMemo(() =>
+        (profilesData?.users || []).map((u: { id: string; email?: string; user_metadata?: { full_name?: string } }) => ({
+            value: u.id,
+            label: u.user_metadata?.full_name || u.email || u.id,
+        })),
+        [profilesData]
+    );
 
     useEffect(() => { setData(opportunity); }, [opportunity]);
     useEffect(() => { if (data?.id) setActiveTab("details"); }, [data?.id]);
 
     useEffect(() => {
         const supabase = createClient();
-        supabase.from("profiles").select("id, full_name, email").then(({ data: profiles }) => {
-            if (profiles) setUsers(profiles.map((p) => ({ value: p.id, label: p.full_name || p.email || p.id })));
-        });
         supabase.from("products").select("id, name, initial_value").eq("status", "active").then(({ data: prods }) => {
             if (prods) setServices(prods);
         });
@@ -145,8 +149,8 @@ export function OpportunitySideSheet({ opportunity, open, onOpenChange, onUpdate
             const updated = { ...data, [column]: value };
             setData(updated);
             onUpdate?.();
-            if (column === "stage" && value === "closed_won") {
-                onStageChange?.(updated, "closed_won");
+            if (column === "stage" && hasBehavior(stages, value as string, "trigger_job_creation")) {
+                onStageChange?.(updated, value as string);
             }
         }
     }, [data, onUpdate, onStageChange]);

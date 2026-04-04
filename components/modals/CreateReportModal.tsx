@@ -5,11 +5,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useReportTemplates } from "@/lib/swr";
+import type { ReportTemplate } from "@/lib/report-templates/types";
 
 interface CreateReportModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onCreated?: (report: any) => void;
+    onCreated?: (report: Record<string, unknown>) => void;
 }
 
 type JobOption = { id: string; description: string };
@@ -23,6 +25,8 @@ const REPORT_TYPES = [
     { value: "specialist", label: "Specialist" },
     { value: "variation", label: "Variation" },
     { value: "roof", label: "Roof" },
+    { value: "rectification", label: "Rectification" },
+    { value: "reinspection", label: "Reinspection" },
     { value: "other", label: "Other" },
 ];
 
@@ -30,22 +34,38 @@ export function CreateReportModal({ open, onOpenChange, onCreated }: CreateRepor
     const [saving, setSaving] = useState(false);
     const [title, setTitle] = useState("");
     const [type, setType] = useState("");
+    const [templateId, setTemplateId] = useState("");
     const [jobId, setJobId] = useState("");
     const [projectId, setProjectId] = useState("");
     const [notes, setNotes] = useState("");
     const [jobs, setJobs] = useState<JobOption[]>([]);
     const [projects, setProjects] = useState<ProjectOption[]>([]);
+    const { data: templatesData } = useReportTemplates();
+
+    const templates: ReportTemplate[] = templatesData?.items || [];
 
     useEffect(() => {
         if (open) {
-            fetch("/api/jobs").then(r => r.json()).then(d => setJobs(d.jobs || [])).catch(() => {});
-            fetch("/api/projects").then(r => r.json()).then(d => setProjects(d.projects || [])).catch(() => {});
+            fetch("/api/jobs").then(r => r.json()).then(d => setJobs(d.items || [])).catch(() => {});
+            fetch("/api/projects").then(r => r.json()).then(d => setProjects(d.items || [])).catch(() => {});
         }
     }, [open]);
+
+    const handleTemplateChange = (id: string) => {
+        setTemplateId(id);
+        if (id) {
+            const template = templates.find((t) => t.id === id);
+            if (template) {
+                if (!title) setTitle(template.name);
+                if (template.category) setType(template.category);
+            }
+        }
+    };
 
     const reset = () => {
         setTitle("");
         setType("");
+        setTemplateId("");
         setJobId("");
         setProjectId("");
         setNotes("");
@@ -63,6 +83,7 @@ export function CreateReportModal({ open, onOpenChange, onCreated }: CreateRepor
                 body: JSON.stringify({
                     title: title.trim(),
                     type,
+                    template_id: templateId || null,
                     job_id: jobId || null,
                     project_id: projectId || null,
                     notes: notes.trim() || null,
@@ -90,6 +111,22 @@ export function CreateReportModal({ open, onOpenChange, onCreated }: CreateRepor
                     <DialogDescription>Create a new construction report.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                    {templates.length > 0 && (
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Template</label>
+                            <select
+                                value={templateId}
+                                onChange={(e) => handleTemplateChange(e.target.value)}
+                                className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                                <option value="">No template (blank report)</option>
+                                {templates.map(t => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-muted-foreground">Title *</label>
                         <Input

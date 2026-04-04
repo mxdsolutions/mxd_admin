@@ -47,8 +47,8 @@
   }
 
   /* Standardize all buttons to pill style */
-  button,
-  [role="button"],
+  button:not([data-no-pill]),
+  [role="button"]:not([data-no-pill]),
   .inline-flex.items-center.justify-center.rounded-md,
   .inline-flex.items-center.justify-center.rounded-lg {
     border-radius: 9999px !important;

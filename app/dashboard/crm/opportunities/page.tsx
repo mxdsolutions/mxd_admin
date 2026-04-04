@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { DashboardPage, DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardPage, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Kanban } from "@/components/Kanban";
@@ -15,8 +16,9 @@ import { CreateOpportunityModal } from "@/components/modals/CreateOpportunityMod
 import { ClosedWonJobModal } from "@/components/modals/ClosedWonJobModal";
 import { CreateJobFromOpportunityModal } from "@/components/modals/CreateJobFromOpportunityModal";
 import { OpportunitySideSheet } from "@/components/sheets/OpportunitySideSheet";
-import { toast } from "sonner";
-import { useOpportunities } from "@/lib/swr";
+import { useOpportunities, useStatusConfig } from "@/lib/swr";
+import { useKanbanPage } from "@/lib/hooks/use-kanban-page";
+import { DEFAULT_OPPORTUNITY_STAGES, toKanbanColumns, hasBehavior } from "@/lib/status-config";
 
 type Opportunity = {
     id: string;
@@ -38,13 +40,7 @@ type Opportunity = {
     created_at: string;
 };
 
-const stageColumns = [
-    { id: "appt_booked", label: "Appt Booked", color: "bg-blue-500" },
-    { id: "proposal_sent", label: "Proposal Sent", color: "bg-amber-500" },
-    { id: "negotiation", label: "Negotiation", color: "bg-indigo-500" },
-    { id: "closed_won", label: "Closed Won", color: "bg-emerald-500" },
-    { id: "closed_lost", label: "Closed Lost", color: "bg-rose-400" },
-];
+// Stage columns are loaded dynamically from tenant config
 
 const probabilityColor = (p: number) => {
     if (p >= 70) return "bg-emerald-500";
@@ -75,10 +71,22 @@ export default function OpportunitiesPage() {
 }
 
 function OpportunitiesPageContent() {
+    usePageTitle("Opportunities");
     const searchParams = useSearchParams();
-    const [search, setSearch] = useState("");
-    const { data, isLoading: loading, mutate } = useOpportunities();
-    const opportunities: Opportunity[] = data?.opportunities || [];
+    const { data: stageData } = useStatusConfig("opportunity");
+    const stages = stageData?.statuses ?? DEFAULT_OPPORTUNITY_STAGES;
+    const stageColumns = toKanbanColumns(stages);
+    const oppsHook = useOpportunities();
+    const { search, setSearch, items, filteredItems: filteredOpportunities, isLoading: loading, handleMove, refresh: fetchOpportunities } = useKanbanPage<Opportunity>({
+        swr: oppsHook,
+        endpoint: "/api/opportunities",
+        statusField: "stage",
+        searchFilter: (opp, q) =>
+            opp.title.toLowerCase().includes(q) ||
+            opp.company?.name.toLowerCase().includes(q) ||
+            opp.contact?.first_name.toLowerCase().includes(q) ||
+            opp.contact?.last_name.toLowerCase().includes(q) || false,
+    });
     const [showCreate, setShowCreate] = useState(false);
     const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
     const [closedWonOpp, setClosedWonOpp] = useState<Opportunity | null>(null);
@@ -86,51 +94,37 @@ function OpportunitiesPageContent() {
     const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
     const router = useRouter();
 
-    const fetchOpportunities = () => mutate();
-
     // Handle deep-link open from URL params
     useEffect(() => {
-        if (!data?.opportunities) return;
+        if (!oppsHook.data?.items) return;
         const openId = pendingOpenId || searchParams.get("open");
         if (openId) {
-            const opp = opportunities.find((o: Opportunity) => o.id === openId);
+            const opp = items.find((o: Opportunity) => o.id === openId);
             if (opp) {
                 setSelectedOpp(opp);
             }
             setPendingOpenId(null);
         }
-    }, [data, searchParams, pendingOpenId, opportunities]);
-
-    const filteredOpportunities = opportunities.filter(opp => {
-        const q = search.toLowerCase();
-        return opp.title.toLowerCase().includes(q) ||
-            opp.company?.name.toLowerCase().includes(q) ||
-            opp.contact?.first_name.toLowerCase().includes(q) ||
-            opp.contact?.last_name.toLowerCase().includes(q);
-    });
+    }, [oppsHook.data, searchParams, pendingOpenId, items]);
 
     return (
         <DashboardPage>
-            <DashboardHeader
-                title="Opportunities"
-                subtitle="Track your sales pipeline and deals."
-            >
+            <DashboardControls>
+                <div className="flex items-center gap-3">
+                    <div className="relative flex-1 max-w-sm">
+                        <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            placeholder="Search opportunities..."
+                            className="pl-9 rounded-xl border-border/50"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                </div>
                 <Button className="rounded-full px-6 shrink-0" onClick={() => setShowCreate(true)}>
                     <PlusIcon className="w-4 h-4 mr-2" />
                     Add Opportunity
                 </Button>
-            </DashboardHeader>
-
-            <DashboardControls>
-                <div className="relative flex-1 max-w-sm">
-                    <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        placeholder="Search opportunities..."
-                        className="pl-9 rounded-xl border-border/50"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
             </DashboardControls>
 
             <Kanban
@@ -139,28 +133,11 @@ function OpportunitiesPageContent() {
                 getItemStatus={(opp) => opp.stage}
                 loading={loading}
                 onCardClick={(opp) => setSelectedOpp(opp)}
-                onItemMove={async (itemId, _from, to, label) => {
-                    mutate(
-                        (current: any) => current ? { ...current, opportunities: current.opportunities.map((o: Opportunity) => o.id === itemId ? { ...o, stage: to } : o) } : current,
-                        { revalidate: false }
-                    );
-                    try {
-                        const res = await fetch("/api/opportunities", {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: itemId, stage: to }),
-                        });
-                        if (!res.ok) throw new Error();
-                        toast.success(`Moved to ${label}`);
-
-                        // Trigger closed won flow
-                        if (to === "closed_won") {
-                            const opp = opportunities.find(o => o.id === itemId);
-                            if (opp) setClosedWonOpp({ ...opp, stage: to });
-                        }
-                    } catch {
-                        mutate();
-                        toast.error("Failed to update stage");
+                onItemMove={async (itemId, from, to, label) => {
+                    await handleMove(itemId, from, to, label);
+                    if (hasBehavior(stages, to, "trigger_job_creation")) {
+                        const opp = items.find(o => o.id === itemId);
+                        if (opp) setClosedWonOpp({ ...opp, stage: to });
                     }
                 }}
                 renderCard={(opp) => {
@@ -246,7 +223,7 @@ function OpportunitiesPageContent() {
                 onOpenChange={(open) => { if (!open) setSelectedOpp(null); }}
                 onUpdate={fetchOpportunities}
                 onStageChange={(opp, newStage) => {
-                    if (newStage === "closed_won") {
+                    if (hasBehavior(stages, newStage, "trigger_job_creation")) {
                         setClosedWonOpp(opp);
                     }
                 }}

@@ -52,9 +52,9 @@ export async function completeOnboarding(formData: FormData) {
         if (profileError) {
             return { success: false, error: profileError.message };
         }
-    } catch (err: any) {
-        if (err.message === "NEXT_REDIRECT") throw err;
-        return { success: false, error: err.message || "An unexpected error occurred" };
+    } catch (err: unknown) {
+        if (err instanceof Error && err.message === "NEXT_REDIRECT") throw err;
+        return { success: false, error: err instanceof Error ? err.message : "An unexpected error occurred" };
     }
 
     redirect("/dashboard");

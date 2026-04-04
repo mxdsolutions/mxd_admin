@@ -72,7 +72,8 @@ export const GET = withAuth(async (request, { supabase, user }) => {
             nextSkip: Number(skip) + Number(top),
             hasMore: !!data["@odata.nextLink"],
         });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to fetch emails";
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 });

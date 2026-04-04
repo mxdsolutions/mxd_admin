@@ -40,7 +40,8 @@ export const POST = withAuth(async (request, { supabase, user }) => {
         }
 
         return NextResponse.json({ success: true });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to send email";
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 });

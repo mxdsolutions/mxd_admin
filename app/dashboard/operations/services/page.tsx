@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
 import {
     tableBase,
@@ -48,7 +49,7 @@ export default function ServicesPage() {
             const res = await fetch("/api/services");
             if (!res.ok) throw new Error("Failed to fetch services");
             const data = await res.json();
-            setServices(data.services || []);
+            setServices(data.items || []);
         } catch (err) {
             console.error(err);
             toast.error("Failed to load services");
@@ -66,22 +67,14 @@ export default function ServicesPage() {
         s.description?.toLowerCase().includes(search.toLowerCase())
     );
 
+    usePageTitle("Services");
+
     return (
         <>
             <ScrollableTableLayout
                 header={
-                    <>
-                        <DashboardHeader
-                            title="Services"
-                            subtitle="Manage your service offerings."
-                        >
-                            <Button className="rounded-full px-6 shrink-0" onClick={() => setShowCreate(true)}>
-                                <PlusIcon className="w-4 h-4 mr-2" />
-                                Add Service
-                            </Button>
-                        </DashboardHeader>
-
-                        <DashboardControls>
+                    <DashboardControls>
+                        <div className="flex items-center gap-3">
                             <div className="relative flex-1 max-w-sm">
                                 <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                 <Input
@@ -91,8 +84,12 @@ export default function ServicesPage() {
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
                             </div>
-                        </DashboardControls>
-                    </>
+                        </div>
+                        <Button className="rounded-full px-6 shrink-0" onClick={() => setShowCreate(true)}>
+                            <PlusIcon className="w-4 h-4 mr-2" />
+                            Add Service
+                        </Button>
+                    </DashboardControls>
                 }
             >
                 <table className={tableBase + " border-collapse min-w-full"}>

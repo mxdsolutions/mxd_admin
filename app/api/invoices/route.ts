@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/app/api/_lib/handler";
 import { parsePagination } from "@/app/api/_lib/pagination";
 import { validationError, serverError } from "@/app/api/_lib/errors";
-import { invoiceSchema } from "@/lib/validation";
+import { invoiceSchema, invoiceUpdateSchema } from "@/lib/validation";
 import { pushInvoiceToXero } from "@/lib/xero-sync";
 
 export const GET = withAuth(async (request, { supabase }) => {
@@ -19,6 +19,10 @@ export const GET = withAuth(async (request, { supabase }) => {
             `invoice_number.ilike.%${search}%,reference.ilike.%${search}%`
         );
     }
+
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status");
+    if (status) query = query.eq("status", status);
 
     const { data, error, count } = await query;
     if (error) return serverError();
@@ -98,18 +102,18 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
     return NextResponse.json({ item: data }, { status: 201 });
 });
 
-export const PATCH = withAuth(async (request, { supabase }) => {
+export const PATCH = withAuth(async (request, { supabase, tenantId }) => {
     const body = await request.json();
-    const { id, ...updates } = body;
+    const validation = invoiceUpdateSchema.safeParse(body);
+    if (!validation.success) return validationError(validation.error);
 
-    if (!id) {
-        return NextResponse.json({ error: "ID is required" }, { status: 400 });
-    }
+    const { id, ...updates } = validation.data;
 
     const { data, error } = await supabase
         .from("invoices")
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq("id", id)
+        .eq("tenant_id", tenantId)
         .select("*, company:companies(id, name)")
         .single();
 

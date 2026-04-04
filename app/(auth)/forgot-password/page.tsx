@@ -31,7 +31,7 @@ export default function ForgotPasswordPage() {
             } else {
                 toast.success("Password reset instructions sent to your email.");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             toast.error("An error occurred. Please try again.");
         } finally {
             setIsLoading(false);

@@ -47,6 +47,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
     voided: { label: "Voided", color: "bg-red-500" },
 };
 
+/** Side sheet for viewing/editing invoice details, line items, and payment tracking. */
 export function InvoiceSideSheet({ invoice, open, onOpenChange, onUpdate }: InvoiceSideSheetProps) {
     const [activeTab, setActiveTab] = useState("details");
     const [data, setData] = useState<Invoice | null>(invoice);

@@ -26,7 +26,7 @@ const EMPTY_FORM: { name: string; license_number: string; issuing_authority: str
 
 export default function LicensesPage() {
     const { data, mutate } = useLicenses();
-    const licenses: License[] = data?.licenses ?? [];
+    const licenses: License[] = data?.items ?? [];
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(EMPTY_FORM);

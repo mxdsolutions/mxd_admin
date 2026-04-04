@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { DashboardHeader, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardControls } from "@/components/dashboard/DashboardPage";
+import { usePageTitle } from "@/lib/page-title-context";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
 import {
     tableBase,
@@ -14,11 +15,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { cn, type AppUser, getInitials, getDisplayName, formatLastActive } from "@/lib/utils";
 import {
     MagnifyingGlassIcon,
     UserPlusIcon,
-    XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ import { UserSideSheet } from "@/components/dashboard/UserSideSheet";
 type UserTab = "all" | "owner" | "admin" | "manager" | "member" | "viewer";
 
 export default function UsersPage() {
+    usePageTitle("Users");
     const [search, setSearch] = useState("");
     const [activeTab, setActiveTab] = useState<UserTab>("all");
     const [users, setUsers] = useState<AppUser[]>([]);
@@ -88,56 +90,36 @@ export default function UsersPage() {
             <ScrollableTableLayout
                 header={
                     <>
-                        <DashboardHeader
-                            title="Users"
-                            subtitle="Manage your team members and their account permissions."
-                        >
+                        <DashboardControls>
+                            <div className="flex items-center gap-3">
+                                <div className="relative flex-1 max-w-sm">
+                                    <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search by name or email..."
+                                        className="pl-9 rounded-xl border-border/50"
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                    />
+                                </div>
+                                <Select value={activeTab} onValueChange={(v) => setActiveTab(v as UserTab)}>
+                                    <SelectTrigger className="w-[140px] rounded-xl border-border/50 h-10">
+                                        <SelectValue placeholder="Role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Roles</SelectItem>
+                                        <SelectItem value="owner">Owners</SelectItem>
+                                        <SelectItem value="admin">Admins</SelectItem>
+                                        <SelectItem value="manager">Managers</SelectItem>
+                                        <SelectItem value="member">Members</SelectItem>
+                                        <SelectItem value="viewer">Viewers</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <Button className="rounded-full px-6 shrink-0" onClick={() => setInviteOpen(true)}>
                                 <UserPlusIcon className="w-4 h-4 mr-2" />
                                 Invite User
                             </Button>
-                        </DashboardHeader>
-
-                        <DashboardControls>
-                            <div className="relative flex-1 max-w-sm">
-                                <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search by name or email..."
-                                    className="pl-9 rounded-xl border-border/50"
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                />
-                            </div>
                         </DashboardControls>
-
-                        <div className="px-4 md:px-6 lg:px-10 border-b border-border/50">
-                            <div className="flex gap-6 -mb-px">
-                                {[
-                                    { id: "all", label: "All" },
-                                    { id: "owner", label: "Owners" },
-                                    { id: "admin", label: "Admins" },
-                                    { id: "manager", label: "Managers" },
-                                    { id: "member", label: "Members" },
-                                    { id: "viewer", label: "Viewers" },
-                                ].map((tab) => (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id as UserTab)}
-                                        className={cn(
-                                            "pb-3 text-sm font-medium transition-colors relative",
-                                            activeTab === tab.id
-                                                ? "text-foreground"
-                                                : "text-muted-foreground hover:text-foreground"
-                                        )}
-                                    >
-                                        {tab.label}
-                                        {activeTab === tab.id && (
-                                            <span className="absolute left-0 right-0 bottom-0 h-0.5 bg-foreground rounded-t-full" />
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
                     </>
                 }
             >

@@ -107,7 +107,7 @@ export async function tenantSignup(formData: FormData) {
         }
 
         return { success: true, tenantId: tenant.id };
-    } catch (err: any) {
-        return { error: err?.message || "An unexpected error occurred" };
+    } catch (err: unknown) {
+        return { error: err instanceof Error ? err.message : "An unexpected error occurred" };
     }
 }
