@@ -72,7 +72,7 @@ export default function UsersPage() {
 
             <div className="flex items-center justify-between gap-3 mb-6">
                 <div className="flex items-center gap-3">
-                    <div className="relative flex-1 max-w-md">
+                    <div className="relative flex-1 min-w-[320px] max-w-xl">
                         <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             placeholder="Search by name or email..."

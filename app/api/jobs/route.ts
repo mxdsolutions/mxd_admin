@@ -4,12 +4,11 @@ import { parsePagination } from "@/app/api/_lib/pagination";
 import { validationError, serverError } from "@/app/api/_lib/errors";
 import { jobSchema, jobUpdateSchema } from "@/lib/validation";
 
-export const GET = withAuth(async (request, { supabase }) => {
+export const GET = withAuth(async (request, { supabase, tenantId }) => {
     const { limit, offset, search } = parsePagination(request);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const companyId = searchParams.get("company_id");
-
     let query = supabase
         .from("jobs")
         .select(`
@@ -25,15 +24,12 @@ export const GET = withAuth(async (request, { supabase }) => {
                     email
                 )
             ),
-            lead:leads!jobs_opportunity_id_fkey (
-                id,
-                title
-            ),
             company:companies (
                 id,
                 name
             )
         `, { count: "exact" })
+        .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
 

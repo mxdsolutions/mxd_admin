@@ -57,14 +57,14 @@ export function CreateServiceModal({ open, onOpenChange, onCreated }: CreateServ
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>New Service</DialogTitle>
                     <DialogDescription>Add a service to your operations.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Service Name *</label>
+                        <label className="text-sm font-medium text-muted-foreground">Service Name *</label>
                         <Input
                             autoFocus
                             placeholder="Website Package"
@@ -74,7 +74,7 @@ export function CreateServiceModal({ open, onOpenChange, onCreated }: CreateServ
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Description</label>
+                        <label className="text-sm font-medium text-muted-foreground">Description</label>
                         <Input
                             placeholder="Brief description of the service..."
                             value={description}
@@ -83,7 +83,7 @@ export function CreateServiceModal({ open, onOpenChange, onCreated }: CreateServ
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Initial Value</label>
+                        <label className="text-sm font-medium text-muted-foreground">Initial Value</label>
                         <Input
                             type="number"
                             step="0.01"
@@ -94,7 +94,7 @@ export function CreateServiceModal({ open, onOpenChange, onCreated }: CreateServ
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Monthly Value</label>
+                        <label className="text-sm font-medium text-muted-foreground">Monthly Value</label>
                         <Input
                             type="number"
                             step="0.01"

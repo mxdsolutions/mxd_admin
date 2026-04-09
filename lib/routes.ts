@@ -3,7 +3,6 @@ export const ROUTES = {
     OVERVIEW: "/dashboard/overview",
 
     // CRM
-    CRM_LEADS: "/dashboard/leads",
     CRM_COMPANIES: "/dashboard/companies",
     CRM_CONTACTS: "/dashboard/contacts",
     CRM_EMAILS: "/dashboard/emails",

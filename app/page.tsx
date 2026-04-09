@@ -146,7 +146,7 @@ function AuthContent() {
               Admin
             </Badge>
             <h3 className="text-4xl font-bold leading-tight text-white">
-              Manage leads, projects<br />and contacts.
+              Manage jobs, projects<br />and contacts.
             </h3>
             <p className="text-lg text-white/60">
               The MXD admin dashboard lets you oversee your CRM, projects and users so your business runs smoothly.
@@ -155,7 +155,7 @@ function AuthContent() {
 
           <div className="grid gap-4">
             {[
-              { icon: WrenchIcon, label: "Leads & pipeline" },
+              { icon: WrenchIcon, label: "Jobs & scheduling" },
               { icon: DocumentCheckIcon, label: "Projects & jobs" },
               { icon: UsersIcon, label: "Companies & contacts" },
             ].map(({ icon: Icon, label }, i) => (

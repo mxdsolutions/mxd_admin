@@ -6,17 +6,9 @@ export type StatusItem = {
     behaviors: string[];
 };
 
-export type EntityType = "lead" | "job";
+export type EntityType = "job";
 
 // -- Default status arrays (exact match of the previously hardcoded values) --
-
-export const DEFAULT_LEAD_STAGES: StatusItem[] = [
-    { id: "appt_booked", label: "Appt Booked", color: "bg-blue-500", is_default: true, behaviors: [] },
-    { id: "proposal_sent", label: "Proposal Sent", color: "bg-amber-500", is_default: false, behaviors: [] },
-    { id: "negotiation", label: "Negotiation", color: "bg-indigo-500", is_default: false, behaviors: [] },
-    { id: "closed_won", label: "Closed Won", color: "bg-emerald-500", is_default: false, behaviors: ["trigger_job_creation"] },
-    { id: "closed_lost", label: "Closed Lost", color: "bg-rose-400", is_default: false, behaviors: [] },
-];
 
 export const DEFAULT_JOB_STATUSES: StatusItem[] = [
     { id: "new", label: "New", color: "bg-amber-500", is_default: true, behaviors: [] },
@@ -26,7 +18,6 @@ export const DEFAULT_JOB_STATUSES: StatusItem[] = [
 ];
 
 export const DEFAULTS_BY_ENTITY: Record<EntityType, StatusItem[]> = {
-    lead: DEFAULT_LEAD_STAGES,
     job: DEFAULT_JOB_STATUSES,
 };
 

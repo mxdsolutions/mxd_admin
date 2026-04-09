@@ -76,14 +76,14 @@ export function CreateReportTemplateModal({ open, onOpenChange, onCreated }: Cre
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>New Report Template</DialogTitle>
                     <DialogDescription>Create a report template for tenants to use.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Template Name *</label>
+                        <label className="text-sm font-medium text-muted-foreground">Template Name *</label>
                         <Input
                             autoFocus
                             placeholder="e.g. Building Defect Report"
@@ -99,7 +99,7 @@ export function CreateReportTemplateModal({ open, onOpenChange, onCreated }: Cre
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Category *</label>
+                        <label className="text-sm font-medium text-muted-foreground">Category *</label>
                         <select
                             value={form.category}
                             onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
@@ -113,7 +113,7 @@ export function CreateReportTemplateModal({ open, onOpenChange, onCreated }: Cre
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Description</label>
+                        <label className="text-sm font-medium text-muted-foreground">Description</label>
                         <textarea
                             placeholder="Brief description of this template..."
                             value={form.description}

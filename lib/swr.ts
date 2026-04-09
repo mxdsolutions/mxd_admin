@@ -24,10 +24,6 @@ export function useContacts(search?: string) {
     return useSWR(`/api/contacts${params}`, fetcher, { ...defaultConfig, keepPreviousData: true });
 }
 
-export function useLeads() {
-    return useSWR("/api/leads", fetcher, defaultConfig);
-}
-
 export function useJobs() {
     return useSWR("/api/jobs", fetcher, defaultConfig);
 }
@@ -162,14 +158,6 @@ export function useJobInvoices(jobId: string | null) {
 
 export function useJobReports(jobId: string | null) {
     return useSWR(jobId ? `/api/reports?job_id=${jobId}` : null, fetcher, defaultConfig);
-}
-
-export function useJobScopes(jobId: string | null) {
-    return useSWR(jobId ? `/api/scopes?job_id=${jobId}` : null, fetcher, defaultConfig);
-}
-
-export function useJobTasks(jobId: string | null) {
-    return useSWR(jobId ? `/api/tasks?job_id=${jobId}` : null, fetcher, defaultConfig);
 }
 
 // Selection hooks for modals (return only when key is truthy)

@@ -36,7 +36,6 @@ const MODULE_TREE = [
         workspace: "CRM",
         id: "crm",
         children: [
-            { id: "crm.leads", label: "Leads" },
             { id: "crm.companies", label: "Companies" },
             { id: "crm.contacts", label: "Contacts" },
         ],
@@ -109,12 +108,11 @@ export function TenantSideSheet({ tenantId, open, onOpenChange, onUpdate }: Tena
     const [suspending, setSuspending] = useState(false);
 
     // Statuses tab state
-    const [leadStages, setLeadStages] = useState<StatusItem[]>([]);
     const [jobStatuses, setJobStatuses] = useState<StatusItem[]>([]);
     const [statusesLoaded, setStatusesLoaded] = useState(false);
     const [statusesSaving, setStatusesSaving] = useState(false);
     const [statusesDirty, setStatusesDirty] = useState<Set<string>>(new Set());
-    const [openSections, setOpenSections] = useState<Set<string>>(new Set(["lead", "job"]));
+    const [openSections, setOpenSections] = useState<Set<string>>(new Set(["job"]));
     const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
 
     // Modules tab state
@@ -181,12 +179,8 @@ export function TenantSideSheet({ tenantId, open, onOpenChange, onUpdate }: Tena
         if (activeTab !== "statuses" || !data?.id || statusesLoaded) return;
         const fetchStatuses = async () => {
             try {
-                const [leadRes, jobRes] = await Promise.all([
-                    fetch(`/api/platform-admin/tenant-config/status?tenant_id=${data.id}&entity_type=lead`),
-                    fetch(`/api/platform-admin/tenant-config/status?tenant_id=${data.id}&entity_type=job`),
-                ]);
-                const [leadData, jobData] = await Promise.all([leadRes.json(), jobRes.json()]);
-                setLeadStages(leadData.statuses || []);
+                const jobRes = await fetch(`/api/platform-admin/tenant-config/status?tenant_id=${data.id}&entity_type=job`);
+                const jobData = await jobRes.json();
                 setJobStatuses(jobData.statuses || []);
                 setStatusesLoaded(true);
                 setStatusesDirty(new Set());
@@ -235,26 +229,22 @@ export function TenantSideSheet({ tenantId, open, onOpenChange, onUpdate }: Tena
     }, []);
 
     const updateStatusLabel = useCallback((entityType: string, index: number, label: string) => {
-        const setter = entityType === "lead" ? setLeadStages : setJobStatuses;
-        setter((prev) => prev.map((s, i) => i === index ? { ...s, label, id: label.toLowerCase().replace(/\s+/g, "_") } : s));
+        setJobStatuses((prev) => prev.map((s, i) => i === index ? { ...s, label, id: label.toLowerCase().replace(/\s+/g, "_") } : s));
         markDirty(entityType);
     }, [markDirty]);
 
     const updateStatusColor = useCallback((entityType: string, index: number, color: string) => {
-        const setter = entityType === "lead" ? setLeadStages : setJobStatuses;
-        setter((prev) => prev.map((s, i) => i === index ? { ...s, color } : s));
+        setJobStatuses((prev) => prev.map((s, i) => i === index ? { ...s, color } : s));
         markDirty(entityType);
         setColorPickerOpen(null);
     }, [markDirty]);
 
     const deleteStatus = useCallback((entityType: string, index: number) => {
-        const setter = entityType === "lead" ? setLeadStages : setJobStatuses;
-        setter((prev) => prev.filter((_, i) => i !== index));
+        setJobStatuses((prev) => prev.filter((_, i) => i !== index));
         markDirty(entityType);
     }, [markDirty]);
 
     const addStatus = useCallback((entityType: string) => {
-        const setter = entityType === "lead" ? setLeadStages : setJobStatuses;
         const newStatus: StatusItem = {
             id: `new_status_${Date.now()}`,
             label: "New Status",
@@ -262,7 +252,7 @@ export function TenantSideSheet({ tenantId, open, onOpenChange, onUpdate }: Tena
             is_default: false,
             behaviors: [],
         };
-        setter((prev) => [...prev, newStatus]);
+        setJobStatuses((prev) => [...prev, newStatus]);
         markDirty(entityType);
     }, [markDirty]);
 
@@ -271,13 +261,6 @@ export function TenantSideSheet({ tenantId, open, onOpenChange, onUpdate }: Tena
         setStatusesSaving(true);
         try {
             const promises: Promise<Response>[] = [];
-            if (statusesDirty.has("lead")) {
-                promises.push(fetch("/api/platform-admin/tenant-config/status", {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ tenant_id: data.id, entity_type: "lead", statuses: leadStages }),
-                }));
-            }
             if (statusesDirty.has("job")) {
                 promises.push(fetch("/api/platform-admin/tenant-config/status", {
                     method: "PUT",
@@ -297,7 +280,7 @@ export function TenantSideSheet({ tenantId, open, onOpenChange, onUpdate }: Tena
         } finally {
             setStatusesSaving(false);
         }
-    }, [data?.id, statusesDirty, leadStages, jobStatuses]);
+    }, [data?.id, statusesDirty, jobStatuses]);
 
     const isModuleEnabled = useCallback((moduleId: string) => {
         const mod = modules.find((m) => m.module_id === moduleId);
@@ -631,7 +614,6 @@ export function TenantSideSheet({ tenantId, open, onOpenChange, onUpdate }: Tena
                                         ) : (
                                             <>
                                                 {([
-                                                    { key: "lead", label: "Lead Stages", items: leadStages, setter: setLeadStages },
                                                     { key: "job", label: "Job Statuses", items: jobStatuses, setter: setJobStatuses },
                                                 ] as const).map(({ key, label, items }) => (
                                                     <div key={key} className="rounded-xl border border-border bg-card">

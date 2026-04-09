@@ -79,7 +79,7 @@ export function ComposeEmailModal({ open, onOpenChange, onSent, defaultTo }: Com
                 <div className="space-y-4 mt-2">
                     <div>
                         <div className="flex items-center justify-between mb-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">To</label>
+                            <label className="text-sm font-medium text-muted-foreground">To</label>
                             {!showCc && (
                                 <button
                                     type="button"
@@ -99,7 +99,7 @@ export function ComposeEmailModal({ open, onOpenChange, onSent, defaultTo }: Com
 
                     {showCc && (
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">CC</label>
+                            <label className="text-sm font-medium text-muted-foreground mb-1.5 block">CC</label>
                             <Input
                                 placeholder="cc@example.com"
                                 value={cc}
@@ -109,7 +109,7 @@ export function ComposeEmailModal({ open, onOpenChange, onSent, defaultTo }: Com
                     )}
 
                     <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Subject</label>
+                        <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Subject</label>
                         <Input
                             placeholder="Email subject"
                             value={subject}
@@ -118,7 +118,7 @@ export function ComposeEmailModal({ open, onOpenChange, onSent, defaultTo }: Com
                     </div>
 
                     <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Body</label>
+                        <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Body</label>
                         <textarea
                             className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-sm min-h-[160px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
                             placeholder="Write your email..."

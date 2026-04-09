@@ -4,7 +4,7 @@ import { parsePagination } from "@/app/api/_lib/pagination";
 import { validationError, serverError } from "@/app/api/_lib/errors";
 import { taskSchema, taskUpdateSchema } from "@/lib/validation";
 
-export const GET = withAuth(async (request, { supabase, user }) => {
+export const GET = withAuth(async (request, { supabase, user, tenantId }) => {
     const { limit, offset, search } = parsePagination(request);
     const url = new URL(request.url);
     const assignedTo = url.searchParams.get("assigned_to");
@@ -13,6 +13,7 @@ export const GET = withAuth(async (request, { supabase, user }) => {
     let query = supabase
         .from("tasks")
         .select("*, assigned_user:profiles!tasks_assigned_to_fkey(id, full_name)", { count: "exact" })
+        .eq("tenant_id", tenantId)
         .order("due_date", { ascending: true, nullsFirst: false })
         .range(offset, offset + limit - 1);
 

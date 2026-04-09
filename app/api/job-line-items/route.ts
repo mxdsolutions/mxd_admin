@@ -4,7 +4,7 @@ import { validationError, serverError, missingParamError, notFoundError } from "
 import { recalcJobAmount } from "@/app/api/_lib/line-items";
 import { lineItemSchema, lineItemUpdateSchema } from "@/lib/validation";
 
-export const GET = withAuth(async (request, { supabase }) => {
+export const GET = withAuth(async (request, { supabase, tenantId }) => {
     const jobId = request.nextUrl.searchParams.get("job_id");
     if (!jobId) return missingParamError("job_id");
 
@@ -17,6 +17,7 @@ export const GET = withAuth(async (request, { supabase }) => {
                 name
             )
         `)
+        .eq("tenant_id", tenantId)
         .eq("job_id", jobId)
         .order("created_at", { ascending: true });
 
@@ -32,6 +33,15 @@ export const POST = withAuth(async (request, { supabase, tenantId }) => {
 
     const { job_id, product_id, quantity, unit_price } = validation.data;
     if (!job_id) return missingParamError("job_id");
+
+    // Verify the job belongs to this tenant
+    const { data: job } = await supabase
+        .from("jobs")
+        .select("id")
+        .eq("id", job_id)
+        .eq("tenant_id", tenantId)
+        .single();
+    if (!job) return notFoundError("Job");
 
     const { data, error } = await supabase
         .from("job_line_items")

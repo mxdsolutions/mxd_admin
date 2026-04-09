@@ -21,8 +21,8 @@ import {
 
 import {
     OVERVIEW_ITEM,
-    buildNavSections,
-    type NavSection,
+    buildNavItems,
+    type NavItem,
 } from "@/features/shell/nav-config";
 import { useTenantModules } from "@/lib/swr";
 import { buildEnabledSet } from "@/lib/module-config";
@@ -46,15 +46,14 @@ function PageTitle({ companyName }: { companyName?: string | null }) {
     );
 }
 
-function SidebarNav({ sections, pathname, onNavigate }: { sections: NavSection[]; pathname: string; onNavigate?: () => void }) {
+function SidebarNav({ items, pathname, onNavigate }: { items: NavItem[]; pathname: string; onNavigate?: () => void }) {
     const linkClass = (isActive: boolean) => cn(
         "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
         isActive ? "bg-white/10 text-white" : "text-white/50 hover:text-white hover:bg-white/[0.07]"
     );
 
     return (
-        <>
-            {/* Overview link */}
+        <div className="space-y-0.5">
             <Link
                 href={OVERVIEW_ITEM.href}
                 onClick={onNavigate}
@@ -63,32 +62,21 @@ function SidebarNav({ sections, pathname, onNavigate }: { sections: NavSection[]
                 <OVERVIEW_ITEM.icon className={cn("w-[18px] h-[18px] transition-transform duration-200", !(pathname === OVERVIEW_ITEM.href) && "group-hover:scale-110")} />
                 {OVERVIEW_ITEM.label}
             </Link>
-
-            {/* Sections */}
-            {sections.map((section) => (
-                <div key={section.id} className="mt-5">
-                    <p className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-widest text-white/30">
-                        {section.label}
-                    </p>
-                    <div className="space-y-0.5">
-                        {section.items.map((item) => {
-                            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-                            return (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    onClick={onNavigate}
-                                    className={linkClass(isActive)}
-                                >
-                                    <item.icon className={cn("w-[18px] h-[18px] transition-transform duration-200", !isActive && "group-hover:scale-110")} />
-                                    {item.label}
-                                </Link>
-                            );
-                        })}
-                    </div>
-                </div>
-            ))}
-        </>
+            {items.map((item) => {
+                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                    <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onNavigate}
+                        className={linkClass(isActive)}
+                    >
+                        <item.icon className={cn("w-[18px] h-[18px] transition-transform duration-200", !isActive && "group-hover:scale-110")} />
+                        {item.label}
+                    </Link>
+                );
+            })}
+        </div>
     );
 }
 
@@ -113,11 +101,11 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
     const tenant = useTenantOptional();
 
     // Permission checks
-    let hasCrmAccess = true, hasOperationsAccess = true, hasSettingsAccess = true;
+    let _hasCrmAccess = true, _hasOperationsAccess = true, hasSettingsAccess = true;
     let hasBrandingAccess = false, hasRolesAccess = false, hasDomainAccess = false;
     try {
-        hasCrmAccess = usePermission("crm", "read");
-        hasOperationsAccess = usePermission("operations", "read");
+        _hasCrmAccess = usePermission("crm", "read");
+        _hasOperationsAccess = usePermission("operations", "read");
         hasSettingsAccess = usePermission("settings", "read");
         hasBrandingAccess = usePermission("settings.branding", "read");
         hasRolesAccess = usePermission("settings.users", "write");
@@ -132,9 +120,7 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
     const enabledModules = buildEnabledSet(modulesData?.modules ?? []);
     const modulesLoaded = !!modulesData;
 
-    const sections = buildNavSections({
-        hasCrmAccess,
-        hasOperationsAccess,
+    const navItems = buildNavItems({
         enabledModules,
         modulesLoaded,
     });
@@ -152,7 +138,7 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                     </Link>
                 </div>
                 <nav className="flex-1 px-3 overflow-y-auto pt-4 pb-4">
-                    <SidebarNav sections={sections} pathname={pathname} />
+                    <SidebarNav items={navItems} pathname={pathname} />
                 </nav>
                 {hasSettingsAccess && (
                     <div className="px-3 pb-5 pt-2">
@@ -170,14 +156,14 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                         </Link>
                     </div>
                 )}
-                <div className="p-3 pb-8 border-t border-white/10">
+                <div className="p-3 pb-5 border-t border-white/10">
                     <Link href="/dashboard/settings/settings" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.07] transition-colors cursor-pointer">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-100 to-blue-100 flex items-center justify-center">
                             <span className="text-xs font-bold text-violet-600">{initials}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-white truncate">{displayName}</p>
-                            <p className="text-[11px] text-white/40 truncate">{userEmail}</p>
+                            <p className="text-base font-medium text-white truncate">{displayName}</p>
+                            <p className="text-[15px] text-white/40 truncate">{userEmail}</p>
                         </div>
                     </Link>
                 </div>
@@ -215,7 +201,7 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                             </div>
 
                             <nav className="flex-1 px-3 overflow-y-auto py-4">
-                                <SidebarNav sections={sections} pathname={pathname} onNavigate={() => setMobileMenuOpen(false)} />
+                                <SidebarNav items={navItems} pathname={pathname} onNavigate={() => setMobileMenuOpen(false)} />
                             </nav>
 
                             {hasSettingsAccess && (
@@ -241,8 +227,8 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                                         <span className="text-xs font-bold text-violet-600">{initials}</span>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-white truncate">{displayName}</p>
-                                        <p className="text-[11px] text-white/40 truncate">{userEmail}</p>
+                                        <p className="text-base font-medium text-white truncate">{displayName}</p>
+                                        <p className="text-[15px] text-white/40 truncate">{userEmail}</p>
                                     </div>
                                 </Link>
                                 <button onClick={() => { setMobileMenuOpen(false); setSignOutOpen(true); }} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors w-full">

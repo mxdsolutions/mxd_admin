@@ -27,6 +27,10 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
     const [jobTitle, setJobTitle] = useState("");
+    const [address, setAddress] = useState("");
+    const [city, setCity] = useState("");
+    const [state, setState] = useState("");
+    const [postcode, setPostcode] = useState("");
     const [companyId, setCompanyId] = useState(defaultCompanyId || "");
     const [companySearch, setCompanySearch] = useState("");
     const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
@@ -46,6 +50,10 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
         setEmail("");
         setPhone("");
         setJobTitle("");
+        setAddress("");
+        setCity("");
+        setState("");
+        setPostcode("");
         setCompanyId(defaultCompanyId || "");
         setCompanySearch("");
     };
@@ -65,6 +73,10 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
                     email: email.trim() || null,
                     phone: phone.trim() || null,
                     job_title: jobTitle.trim() || null,
+                    address: address.trim() || null,
+                    city: city.trim() || null,
+                    state: state.trim() || null,
+                    postcode: postcode.trim() || null,
                     company_id: companyId || null,
                 }),
             });
@@ -84,7 +96,7 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>New Contact</DialogTitle>
                         <DialogDescription>Add a person to your contacts.</DialogDescription>
@@ -92,7 +104,7 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
                     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-muted-foreground">First Name *</label>
+                                <label className="text-sm font-medium text-muted-foreground">First Name *</label>
                                 <Input
                                     autoFocus
                                     placeholder="John"
@@ -102,7 +114,7 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-muted-foreground">Last Name *</label>
+                                <label className="text-sm font-medium text-muted-foreground">Last Name *</label>
                                 <Input
                                     placeholder="Smith"
                                     value={lastName}
@@ -114,7 +126,7 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
 
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-muted-foreground">Email</label>
+                                <label className="text-sm font-medium text-muted-foreground">Email</label>
                                 <Input
                                     placeholder="john@acme.com"
                                     value={email}
@@ -123,7 +135,7 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-muted-foreground">Phone</label>
+                                <label className="text-sm font-medium text-muted-foreground">Phone</label>
                                 <Input
                                     placeholder="0400 000 000"
                                     value={phone}
@@ -134,7 +146,7 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Job Title</label>
+                            <label className="text-sm font-medium text-muted-foreground">Job Title</label>
                             <Input
                                 placeholder="Project Manager"
                                 value={jobTitle}
@@ -143,9 +155,49 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
                             />
                         </div>
 
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-muted-foreground">Address</label>
+                            <Input
+                                placeholder="123 Main Street"
+                                value={address}
+                                onChange={(e) => setAddress(e.target.value)}
+                                className="rounded-xl"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-muted-foreground">City</label>
+                                <Input
+                                    placeholder="Sydney"
+                                    value={city}
+                                    onChange={(e) => setCity(e.target.value)}
+                                    className="rounded-xl"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-muted-foreground">State</label>
+                                <Input
+                                    placeholder="NSW"
+                                    value={state}
+                                    onChange={(e) => setState(e.target.value)}
+                                    className="rounded-xl"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-muted-foreground">Postcode</label>
+                                <Input
+                                    placeholder="2000"
+                                    value={postcode}
+                                    onChange={(e) => setPostcode(e.target.value)}
+                                    className="rounded-xl"
+                                />
+                            </div>
+                        </div>
+
                         {/* Company selector */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Company</label>
+                            <label className="text-sm font-medium text-muted-foreground">Company</label>
                             <div className="relative">
                                 <Input
                                     placeholder="Search or create company..."

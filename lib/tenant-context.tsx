@@ -37,7 +37,7 @@ export function useTenantOptional(): TenantContextData | null {
 
 /**
  * Check if the current user has a specific permission.
- * Resolution: specific key (e.g., "crm.leads") -> parent key ("crm") -> deny.
+ * Resolution: specific key (e.g., "crm.companies") -> parent key ("crm") -> deny.
  */
 export function usePermission(resource: string, action: "read" | "write" | "delete"): boolean {
     const { permissions, role } = useTenant();

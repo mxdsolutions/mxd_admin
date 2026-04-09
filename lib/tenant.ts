@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import {
-    DEFAULT_LEAD_STAGES,
     DEFAULT_JOB_STATUSES,
 } from "@/lib/status-config";
 import { DEFAULT_MODULES } from "@/lib/module-config";
@@ -182,7 +181,6 @@ export async function seedDefaultStatuses(tenantId: string) {
     const admin = await createAdminClient();
 
     await admin.from("tenant_status_configs").insert([
-        { tenant_id: tenantId, entity_type: "lead", statuses: DEFAULT_LEAD_STAGES },
         { tenant_id: tenantId, entity_type: "job", statuses: DEFAULT_JOB_STATUSES },
     ]);
 }

@@ -8,7 +8,6 @@ import {
     SheetTitle,
     SheetDescription,
 } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type Tab = {
@@ -27,6 +26,8 @@ interface SideSheetLayoutProps {
         label: string;
         dotColor: string;
     };
+    actions?: ReactNode;
+    contentClassName?: string;
     tabs: Tab[];
     activeTab: string;
     onTabChange: (tabId: string) => void;
@@ -42,6 +43,8 @@ export function SideSheetLayout({
     title,
     subtitle,
     badge,
+    actions,
+    contentClassName,
     tabs,
     activeTab,
     onTabChange,
@@ -49,26 +52,38 @@ export function SideSheetLayout({
 }: SideSheetLayoutProps) {
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="w-full sm:max-w-[900px] flex flex-col p-0 border-l border-border bg-background">
+            <SheetContent className={cn("w-full sm:max-w-[900px] flex flex-col p-0 border-l border-border bg-background", contentClassName)}>
                 {/* Header */}
                 <div className="p-6 pb-4 border-b border-border">
                     <SheetHeader className="flex flex-row items-start gap-4 space-y-0 text-left">
-                        <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 mt-0.5", iconBg)}>
+                        <div className={cn("w-[60px] h-[60px] rounded-xl flex items-center justify-center shrink-0", iconBg)}>
                             {icon}
                         </div>
-                        <div className="flex-1 min-w-0 pt-0.5">
-                            <div className="flex items-center gap-2.5">
-                                <SheetTitle className="text-lg font-bold truncate">{title}</SheetTitle>
-                                {badge && (
-                                    <Badge variant="outline" className="shrink-0 text-[10px] font-bold uppercase tracking-wider">
-                                        <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", badge.dotColor)} />
-                                        {badge.label}
-                                    </Badge>
-                                )}
-                            </div>
-                            <SheetDescription className="text-sm text-muted-foreground mt-1">
-                                {subtitle}
-                            </SheetDescription>
+                        <div className="flex-1 min-w-0">
+                            <SheetTitle className="text-[22px] font-bold truncate leading-tight">{title}</SheetTitle>
+                            <SheetDescription className="sr-only">{subtitle}</SheetDescription>
+                            {(badge || actions) && (
+                                <div className="flex items-center justify-between gap-3 mt-[2px]">
+                                    <div className="flex items-center gap-2">
+                                        {badge && (
+                                            <span className="inline-flex items-center shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider bg-secondary text-foreground">
+                                                <span className={cn("w-2 h-2 rounded-full mr-2", badge.dotColor)} />
+                                                {badge.label}
+                                            </span>
+                                        )}
+                                        {subtitle && (
+                                            <span className="text-sm text-muted-foreground">
+                                                {badge && "·"} {subtitle}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {actions && (
+                                        <div className="flex items-center gap-2">
+                                            {actions}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </SheetHeader>
                 </div>
@@ -82,7 +97,7 @@ export function SideSheetLayout({
                                     key={tab.id}
                                     onClick={() => onTabChange(tab.id)}
                                     className={cn(
-                                        "pb-3 text-sm font-medium transition-colors relative focus:outline-none",
+                                        "pb-3 text-[17px] font-medium transition-colors relative focus:outline-none",
                                         activeTab === tab.id
                                             ? "text-foreground"
                                             : "text-muted-foreground hover:text-foreground"

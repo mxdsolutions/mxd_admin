@@ -1,19 +1,24 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { TrashIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, MagnifyingGlassIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { InlineNumberInput } from "@/features/line-items/InlineNumberInput";
 import { formatCurrency } from "@/lib/utils";
 import { QuoteHeader } from "@/components/quotes/QuoteHeader";
+
+const CreateContactModal = lazy(() =>
+    import("./CreateContactModal").then(mod => ({ default: mod.CreateContactModal }))
+);
 
 interface CreateQuoteModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onCreated?: (quote: Record<string, unknown>) => void;
+    defaultValues?: { contactId?: string; companyId?: string; jobId?: string };
 }
 
 type ContactOption = { id: string; first_name: string; last_name: string; email: string | null; company_id: string | null; company?: { id: string; name: string } | null };
@@ -30,8 +35,14 @@ type PricingItem = {
     Labour_Cost: string | null;
 };
 
+type ServiceItem = {
+    id: string;
+    name: string;
+    initial_value: number | null;
+};
+
 type QuoteLineItem = {
-    pricing_matrix_id: string;
+    pricing_matrix_id: string | null;
     description: string;
     trade: string;
     uom: string;
@@ -48,12 +59,18 @@ function parseNum(val: string | null | undefined): number {
 
 const GST_RATE = 0.1;
 
-export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteModalProps) {
+export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues }: CreateQuoteModalProps) {
     const [saving, setSaving] = useState(false);
+
+    const defaultValidUntil = () => {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        return d.toISOString().split("T")[0];
+    };
 
     // Quote fields
     const [description, setDescription] = useState("");
-    const [validUntil, setValidUntil] = useState("");
+    const [validUntil, setValidUntil] = useState(defaultValidUntil());
     const [materialMargin, setMaterialMargin] = useState(20);
     const [labourMargin, setLabourMargin] = useState(20);
     const [gstInclusive, setGstInclusive] = useState(true);
@@ -63,12 +80,16 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
     const [contactId, setContactId] = useState("");
     const [contactSearch, setContactSearch] = useState("");
     const [showContactDropdown, setShowContactDropdown] = useState(false);
+    const [showCreateContact, setShowCreateContact] = useState(false);
 
     // Company (auto-filled from contact)
     const [companies, setCompanies] = useState<CompanyOption[]>([]);
     const [companyId, setCompanyId] = useState("");
 
-    // Pricing search
+    // Services (preloaded — small dataset)
+    const [services, setServices] = useState<ServiceItem[]>([]);
+
+    // Pricing search (API-backed — large dataset)
     const [pricingSearch, setPricingSearch] = useState("");
     const [pricingResults, setPricingResults] = useState<PricingItem[]>([]);
     const [showPricingDropdown, setShowPricingDropdown] = useState(false);
@@ -78,26 +99,42 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
     // Line items
     const [lineItems, setLineItems] = useState<QuoteLineItem[]>([]);
 
-    // Load contacts + companies on open
+    const refreshContacts = useCallback(() => {
+        fetch("/api/contacts?limit=200")
+            .then(r => r.json())
+            .then(d => setContacts(d.items || []))
+            .catch(() => {});
+    }, []);
+
+    // Load contacts + companies on open, then apply defaults
     useEffect(() => {
         if (open) {
             fetch("/api/contacts?limit=200")
                 .then(r => r.json())
-                .then(d => setContacts(d.items || []))
+                .then(d => {
+                    setContacts(d.items || []);
+                    if (defaultValues?.contactId) setContactId(defaultValues.contactId);
+                })
                 .catch(() => {});
             fetch("/api/companies")
                 .then(r => r.json())
-                .then(d => setCompanies(d.items || []))
+                .then(d => {
+                    setCompanies(d.items || []);
+                    if (defaultValues?.companyId) setCompanyId(defaultValues.companyId);
+                })
+                .catch(() => {});
+            fetch("/api/services?limit=200")
+                .then(r => r.json())
+                .then(d => setServices(d.items || []))
                 .catch(() => {});
         }
     }, [open]);
 
-    // Debounced pricing search
+    // Debounced pricing search (150ms — trigram index makes DB queries fast)
     const searchPricing = useCallback((query: string) => {
         if (pricingDebounceRef.current) clearTimeout(pricingDebounceRef.current);
         if (query.length < 2) {
             setPricingResults([]);
-            setShowPricingDropdown(false);
             return;
         }
         setPricingLoading(true);
@@ -106,13 +143,12 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
                 const res = await fetch(`/api/pricing?search=${encodeURIComponent(query)}&limit=20`);
                 const data = await res.json();
                 setPricingResults(data.items || []);
-                setShowPricingDropdown(true);
             } catch {
                 setPricingResults([]);
             } finally {
                 setPricingLoading(false);
             }
-        }, 300);
+        }, 150);
     }, []);
 
     const selectedContact = contacts.find(c => c.id === contactId);
@@ -149,7 +185,7 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
 
     const reset = () => {
         setDescription("");
-        setValidUntil("");
+        setValidUntil(defaultValidUntil());
         setMaterialMargin(20);
         setLabourMargin(20);
         setGstInclusive(true);
@@ -157,9 +193,14 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
         setContactSearch("");
         setCompanyId("");
         setPricingSearch("");
-        setPricingResults([]);
         setLineItems([]);
     };
+
+    const filteredServices = useMemo(() => {
+        if (pricingSearch.length < 2) return [];
+        const q = pricingSearch.toLowerCase();
+        return services.filter(s => s.name.toLowerCase().includes(q));
+    }, [pricingSearch, services]);
 
     const addPricingItem = (item: PricingItem) => {
         setLineItems(prev => [
@@ -172,6 +213,23 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
                 quantity: 1,
                 material_cost: parseNum(item.Material_Cost),
                 labour_cost: parseNum(item.Labour_Cost),
+            },
+        ]);
+        setPricingSearch("");
+        setShowPricingDropdown(false);
+    };
+
+    const addServiceItem = (svc: ServiceItem) => {
+        setLineItems(prev => [
+            ...prev,
+            {
+                pricing_matrix_id: null,
+                description: svc.name,
+                trade: "Service",
+                uom: "each",
+                quantity: 1,
+                material_cost: 0,
+                labour_cost: svc.initial_value || 0,
             },
         ]);
         setPricingSearch("");
@@ -203,6 +261,7 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
                     description: description.trim() || null,
                     contact_id: contactId || null,
                     company_id: companyId || null,
+                    job_id: defaultValues?.jobId || null,
                     valid_until: validUntil || null,
                     material_margin: materialMargin,
                     labour_margin: labourMargin,
@@ -224,8 +283,9 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
     };
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[35%] max-h-[90vh] flex flex-col">
+            <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>New Quote</DialogTitle>
                     <DialogDescription>Build a quote from the pricing matrix.</DialogDescription>
@@ -234,14 +294,14 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
                 <form onSubmit={handleSubmit} className="flex flex-col gap-5 overflow-y-auto px-1 flex-1">
                     <QuoteHeader />
 
-                    {/* Header fields: Contact, Company, Valid Until */}
-                    <div className="grid grid-cols-3 gap-3">
-                        {/* Contact selector */}
+                    {/* Header fields: Contact, Valid Until */}
+                    <div className="grid grid-cols-2 gap-3">
+                        {/* Contact selector with search + create */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Contact</label>
+                            <label className="text-sm font-medium text-muted-foreground">Contact</label>
                             <div className="relative">
                                 <Input
-                                    placeholder="Search contact..."
+                                    placeholder="Search or create contact..."
                                     value={selectedContact ? `${selectedContact.first_name} ${selectedContact.last_name}` : contactSearch}
                                     onChange={(e) => {
                                         setContactSearch(e.target.value);
@@ -254,14 +314,17 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
                                 />
                                 {showContactDropdown && !selectedContact && (
                                     <div className="absolute z-50 top-full mt-1 w-full bg-background border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                                        {filteredContacts.length === 0 && (
+                                        {filteredContacts.length === 0 && !contactSearch && (
+                                            <div className="px-3 py-2 text-sm text-muted-foreground">Type to search contacts</div>
+                                        )}
+                                        {filteredContacts.length === 0 && contactSearch && (
                                             <div className="px-3 py-2 text-sm text-muted-foreground">No contacts found</div>
                                         )}
                                         {filteredContacts.map(c => (
                                             <button
                                                 key={c.id}
                                                 type="button"
-                                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors first:rounded-t-xl last:rounded-b-xl"
+                                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors first:rounded-t-xl"
                                                 onClick={() => {
                                                     setContactId(c.id);
                                                     setContactSearch("");
@@ -273,6 +336,17 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
                                                 {c.email && <span className="text-muted-foreground ml-2 text-xs">{c.email}</span>}
                                             </button>
                                         ))}
+                                        <button
+                                            type="button"
+                                            className="w-full text-left px-3 py-2 text-sm text-primary font-medium hover:bg-muted transition-colors flex items-center gap-1.5 border-t border-border rounded-b-xl"
+                                            onClick={() => {
+                                                setShowContactDropdown(false);
+                                                setShowCreateContact(true);
+                                            }}
+                                        >
+                                            <PlusIcon className="w-3.5 h-3.5" />
+                                            Create new contact{contactSearch ? `: "${contactSearch}"` : ""}
+                                        </button>
                                     </div>
                                 )}
                                 {selectedContact && (
@@ -288,17 +362,7 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Company</label>
-                            <Input
-                                value={selectedCompany?.name || ""}
-                                disabled
-                                placeholder="Auto-filled from contact"
-                                className="rounded-xl"
-                            />
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Valid Until</label>
+                            <label className="text-sm font-medium text-muted-foreground">Valid Until</label>
                             <Input
                                 type="date"
                                 value={validUntil}
@@ -310,49 +374,84 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
 
                     {/* Pricing search */}
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Add Line Items</label>
+                        <label className="text-sm font-medium text-muted-foreground">Add Line Items</label>
                         <div className="relative">
                             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search pricing items by name, trade, or category..."
+                                placeholder="Search materials or services..."
                                 value={pricingSearch}
                                 onChange={(e) => {
                                     setPricingSearch(e.target.value);
                                     searchPricing(e.target.value);
+                                    setShowPricingDropdown(e.target.value.length >= 2);
                                 }}
-                                onFocus={() => { if (pricingResults.length > 0) setShowPricingDropdown(true); }}
+                                onFocus={() => { if (pricingSearch.length >= 2) setShowPricingDropdown(true); }}
                                 onBlur={() => setTimeout(() => setShowPricingDropdown(false), 200)}
                                 className="rounded-xl pl-9"
                             />
                             {showPricingDropdown && (
-                                <div className="absolute z-50 top-full mt-1 w-full bg-background border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto">
-                                    {pricingLoading && (
+                                <div className="absolute z-50 top-full mt-1 w-full bg-background border border-border rounded-xl shadow-lg max-h-72 overflow-y-auto">
+                                    {pricingLoading && filteredServices.length === 0 && (
                                         <div className="px-3 py-2 text-sm text-muted-foreground">Searching...</div>
                                     )}
-                                    {!pricingLoading && pricingResults.length === 0 && (
+
+                                    {/* Services section */}
+                                    {filteredServices.length > 0 && (
+                                        <>
+                                            <div className="px-3 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/40 border-b border-border/50">
+                                                Services
+                                            </div>
+                                            {filteredServices.map(svc => (
+                                                <button
+                                                    key={svc.id}
+                                                    type="button"
+                                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                                                    onClick={() => addServiceItem(svc)}
+                                                >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="font-medium truncate">{svc.name}</span>
+                                                        {svc.initial_value != null && (
+                                                            <span className="text-xs text-muted-foreground shrink-0">{formatCurrency(svc.initial_value)}</span>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </>
+                                    )}
+
+                                    {/* Materials section */}
+                                    {pricingResults.length > 0 && (
+                                        <>
+                                            <div className="px-3 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/40 border-b border-border/50">
+                                                Materials
+                                            </div>
+                                            {pricingResults.map((item) => (
+                                                <button
+                                                    key={item.Matrix_ID}
+                                                    type="button"
+                                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                                                    onClick={() => addPricingItem(item)}
+                                                >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="flex-1 min-w-0">
+                                                            <span className="font-medium truncate block">{item.Item}</span>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {item.Trade}{item.Category ? ` / ${item.Category}` : ""}{item.UOM ? ` (${item.UOM})` : ""}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground text-right shrink-0">
+                                                            <div>Mat: {formatCurrency(parseNum(item.Material_Cost))}</div>
+                                                            <div>Lab: {formatCurrency(parseNum(item.Labour_Cost))}</div>
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </>
+                                    )}
+
+                                    {!pricingLoading && pricingResults.length === 0 && filteredServices.length === 0 && pricingSearch.length >= 2 && (
                                         <div className="px-3 py-2 text-sm text-muted-foreground">No items found</div>
                                     )}
-                                    {pricingResults.map((item) => (
-                                        <button
-                                            key={item.Matrix_ID}
-                                            type="button"
-                                            className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors first:rounded-t-xl last:rounded-b-xl"
-                                            onClick={() => addPricingItem(item)}
-                                        >
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="flex-1 min-w-0">
-                                                    <span className="font-medium truncate block">{item.Item}</span>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {item.Trade}{item.Category ? ` / ${item.Category}` : ""}{item.UOM ? ` (${item.UOM})` : ""}
-                                                    </span>
-                                                </div>
-                                                <div className="text-xs text-muted-foreground text-right shrink-0">
-                                                    <div>Mat: {formatCurrency(parseNum(item.Material_Cost))}</div>
-                                                    <div>Lab: {formatCurrency(parseNum(item.Labour_Cost))}</div>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))}
                                 </div>
                             )}
                         </div>
@@ -363,12 +462,11 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-border bg-secondary/30">
-                                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">Item</th>
-                                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">UOM</th>
-                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">Qty</th>
-                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Material $</th>
-                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Labour $</th>
-                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Total</th>
+                                    <th className="text-left px-4 py-2.5 text-sm font-medium text-muted-foreground uppercase tracking-wider">Item</th>
+                                    <th className="text-right px-4 py-2.5 text-sm font-medium text-muted-foreground uppercase tracking-wider w-[88px]">Qty</th>
+                                    <th className="text-right px-4 py-2.5 text-sm font-medium text-muted-foreground uppercase tracking-wider w-28">Material</th>
+                                    <th className="text-right px-4 py-2.5 text-sm font-medium text-muted-foreground uppercase tracking-wider w-28">Labour</th>
+                                    <th className="text-right px-4 py-2.5 text-sm font-medium text-muted-foreground uppercase tracking-wider w-28">Total</th>
                                     <th className="w-10" />
                                 </tr>
                             </thead>
@@ -378,8 +476,8 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
                                 <tbody>
                                     {lineItems.length === 0 && (
                                         <tr>
-                                            <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                                                Search and add pricing items above
+                                            <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                                Search and add materials or services above
                                             </td>
                                         </tr>
                                     )}
@@ -388,8 +486,7 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
                                         return (
                                             <tr key={idx} className="border-b border-border/50 last:border-0">
                                                 <td className="px-4 py-3 font-medium">{li.description}</td>
-                                                <td className="px-4 py-3 text-muted-foreground text-xs w-16">{li.uom}</td>
-                                                <td className="px-4 py-3 text-right w-16">
+                                                <td className="px-4 py-3 text-right w-[88px]">
                                                     <InlineNumberInput
                                                         value={li.quantity}
                                                         onSave={(v) => updateLineItem(idx, "quantity", v)}
@@ -503,7 +600,7 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
 
                     {/* Description */}
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Notes</label>
+                        <label className="text-sm font-medium text-muted-foreground">Notes</label>
                         <textarea
                             placeholder="Additional notes..."
                             value={description}
@@ -531,5 +628,21 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated }: CreateQuoteM
                 </form>
             </DialogContent>
         </Dialog>
+
+        {showCreateContact && (
+            <Suspense fallback={null}>
+                <CreateContactModal
+                    open={showCreateContact}
+                    onOpenChange={setShowCreateContact}
+                    onCreated={(contact) => {
+                        refreshContacts();
+                        setContactId(contact.id);
+                        setContactSearch("");
+                        if (contact.company_id) setCompanyId(contact.company_id);
+                    }}
+                />
+            </Suspense>
+        )}
+        </>
     );
 }

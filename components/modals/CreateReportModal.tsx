@@ -109,7 +109,7 @@ export function CreateReportModal({ open, onOpenChange, onCreated, defaultValues
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>New Report</DialogTitle>
                     <DialogDescription>Create a new construction report.</DialogDescription>
@@ -117,7 +117,7 @@ export function CreateReportModal({ open, onOpenChange, onCreated, defaultValues
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                     {templates.length > 0 && (
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Template</label>
+                            <label className="text-sm font-medium text-muted-foreground">Template</label>
                             <select
                                 value={templateId}
                                 onChange={(e) => handleTemplateChange(e.target.value)}
@@ -132,7 +132,7 @@ export function CreateReportModal({ open, onOpenChange, onCreated, defaultValues
                     )}
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Title *</label>
+                        <label className="text-sm font-medium text-muted-foreground">Title *</label>
                         <Input
                             autoFocus
                             placeholder="Report title..."
@@ -143,7 +143,7 @@ export function CreateReportModal({ open, onOpenChange, onCreated, defaultValues
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Type *</label>
+                        <label className="text-sm font-medium text-muted-foreground">Type *</label>
                         <select
                             value={type}
                             onChange={(e) => setType(e.target.value)}
@@ -158,7 +158,7 @@ export function CreateReportModal({ open, onOpenChange, onCreated, defaultValues
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Job</label>
+                            <label className="text-sm font-medium text-muted-foreground">Job</label>
                             <select
                                 value={jobId}
                                 onChange={(e) => setJobId(e.target.value)}
@@ -171,7 +171,7 @@ export function CreateReportModal({ open, onOpenChange, onCreated, defaultValues
                             </select>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Scope</label>
+                            <label className="text-sm font-medium text-muted-foreground">Scope</label>
                             <select
                                 value={projectId}
                                 onChange={(e) => setProjectId(e.target.value)}
@@ -186,7 +186,7 @@ export function CreateReportModal({ open, onOpenChange, onCreated, defaultValues
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Notes</label>
+                        <label className="text-sm font-medium text-muted-foreground">Notes</label>
                         <textarea
                             placeholder="Additional notes..."
                             value={notes}

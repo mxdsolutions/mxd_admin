@@ -87,7 +87,7 @@ function EditableValue({
                 }}
             >
                 <SelectTrigger className={cn(
-                    "h-auto py-1 px-2.5 border-0 bg-transparent text-sm text-foreground text-right justify-end gap-1 min-w-0 shadow-none focus:ring-0 focus:ring-offset-0 hover:bg-muted/50 rounded-lg transition-colors -mr-2",
+                    "h-auto py-1 px-2.5 border-0 bg-transparent text-[15px] text-foreground text-right justify-end gap-1 min-w-0 shadow-none focus:ring-0 focus:ring-offset-0 hover:bg-muted/50 rounded-lg transition-colors -mr-2",
                     saving && "opacity-50"
                 )}>
                     <SelectValue placeholder="Select..." />
@@ -109,7 +109,7 @@ function EditableValue({
     // Non-editable fields
     if (!field.dbColumn || !onSave) {
         return (
-            <span className="text-sm text-foreground text-right min-w-0 truncate">
+            <span className="text-[15px] text-foreground text-right min-w-0 truncate">
                 {field.value || <span className="text-muted-foreground/40">&mdash;</span>}
             </span>
         );
@@ -117,7 +117,7 @@ function EditableValue({
 
     // Editable text/number/date
     if (editing) {
-        const sharedClasses = "text-sm text-foreground text-right bg-muted/40 border border-border rounded-lg py-1.5 px-2.5 min-w-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 focus:ring-offset-background transition-shadow";
+        const sharedClasses = "text-[15px] text-foreground text-right bg-muted/40 border border-border rounded-lg py-1.5 px-2.5 min-w-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 focus:ring-offset-background transition-shadow";
         if (field.type === "textarea") {
             return (
                 <textarea
@@ -154,11 +154,11 @@ function EditableValue({
             type="button"
             onClick={() => setEditing(true)}
             className={cn(
-                "text-sm text-foreground text-right min-w-0 truncate hover:bg-muted/50 rounded-md px-1.5 py-0.5 -mr-1.5 transition-colors cursor-text",
+                "text-[15px] text-foreground text-right min-w-0 truncate hover:bg-muted/50 rounded-md px-1.5 py-0.5 -mr-1.5 transition-colors cursor-text",
                 saving && "opacity-50"
             )}
         >
-            {field.value || <span className="text-muted-foreground/40 italic text-xs">Click to add</span>}
+            {field.value || <span className="text-muted-foreground/40 italic text-sm">Click to add</span>}
         </button>
     );
 }
@@ -168,7 +168,7 @@ export function DetailFields({ fields, className, onSave }: DetailFieldsProps) {
         <div className={cn("space-y-3", className)}>
             {fields.map((field, i) => (
                 <div key={i} className="flex items-start justify-between gap-4">
-                    <span className="text-xs font-medium text-muted-foreground shrink-0 pt-1">
+                    <span className="text-sm font-medium text-muted-foreground shrink-0 pt-1">
                         {field.label}
                     </span>
                     <EditableValue field={field} onSave={onSave} />
@@ -188,7 +188,7 @@ interface EntityCardProps {
 export function LinkedEntityCard({ label, title, subtitle, icon }: EntityCardProps) {
     return (
         <div className="rounded-xl border border-border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-2">
+            <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground/60 mb-2">
                 {label}
             </p>
             <div className="flex items-center gap-2.5">
@@ -198,9 +198,9 @@ export function LinkedEntityCard({ label, title, subtitle, icon }: EntityCardPro
                     </div>
                 )}
                 <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">{title}</p>
+                    <p className="text-[15px] font-semibold text-foreground truncate">{title}</p>
                     {subtitle && (
-                        <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+                        <p className="text-sm text-muted-foreground truncate">{subtitle}</p>
                     )}
                 </div>
             </div>

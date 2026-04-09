@@ -63,8 +63,10 @@ export function ScheduleEntryModal({
             setStartTime(entry.start_time || "");
             setEndTime(entry.end_time || "");
             setNotes(entry.notes || "");
-        } else if (defaultDate) {
-            setDate(defaultDate);
+        } else {
+            if (defaultDate) setDate(defaultDate);
+            setStartTime("09:00");
+            setEndTime("18:00");
         }
     }, [open, entry, defaultDate]);
 
@@ -121,7 +123,7 @@ export function ScheduleEntryModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>{isEditing ? "Edit Schedule Entry" : "Schedule Job"}</DialogTitle>
                     <DialogDescription>

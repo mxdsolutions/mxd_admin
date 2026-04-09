@@ -6,11 +6,69 @@
 
 /* ── Typography ── */
 
-/** Stat label — slightly larger for metric cards */
+// --- Headings ---
+
+/** Page title — used in DashboardControls / sticky header context */
+export const pageHeadingClass = "text-lg font-semibold tracking-tight";
+
+/** Section heading inside a page (card titles, tab subtitles) */
+export const sectionHeadingClass = "text-base font-semibold text-foreground";
+
+/** Side sheet title */
+export const sheetTitleClass = "text-[22px] font-bold truncate leading-tight";
+
+/** Modal / dialog title */
+export const dialogTitleClass = "text-xl font-semibold leading-none tracking-tight";
+
+/** Hero heading — onboarding / auth splash pages */
+export const heroHeadingClass = "text-5xl md:text-6xl font-bold tracking-tight";
+
+/** Hero sub-heading */
+export const heroSubheadingClass = "text-4xl md:text-5xl font-bold tracking-tight";
+
+// --- Body ---
+
+/** Standard body text */
+export const bodyClass = "text-sm text-foreground";
+
+/** Body text — slightly larger for prominent content (dialog descriptions, detail values) */
+export const bodyLargeClass = "text-[15px] text-foreground";
+
+/** Muted secondary text (subtitles, helper text) */
+export const bodyMutedClass = "text-sm text-muted-foreground";
+
+// --- Labels ---
+
+/** Form field label */
+export const fieldLabelClass = "text-sm font-medium text-muted-foreground";
+
+/** Uppercase section / category label */
+export const sectionLabelClass = "text-[11px] font-bold text-muted-foreground uppercase tracking-wider";
+
+/** Uppercase section label — softer variant */
+export const sectionLabelSoftClass = "text-xs uppercase tracking-wider font-semibold text-muted-foreground/60";
+
+// --- Stats ---
+
+/** Stat label — metric cards */
 export const statLabelClass = "text-[11px] text-muted-foreground uppercase tracking-wide";
 
 /** Stat value — large bold value */
 export const statValueClass = "text-xl font-bold tracking-tight";
+
+// --- Interactive ---
+
+/** Navigation item (sidebar) */
+export const navItemClass = "text-sm font-medium";
+
+/** Tab button */
+export const tabClass = "text-[17px] font-medium";
+
+/** Badge / status pill */
+export const badgeClass = "text-[11px] font-semibold uppercase tracking-wider";
+
+/** Small meta text (timestamps, ids) */
+export const metaClass = "text-[10px] text-muted-foreground";
 
 /* ── Spacing ── */
 

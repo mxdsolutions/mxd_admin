@@ -11,8 +11,21 @@ import { createClient } from "@/lib/supabase/client";
 import { useProfiles, useStatusConfig, useJobQuotes, useJobInvoices, useJobReports } from "@/lib/swr";
 import { DEFAULT_JOB_STATUSES, toStatusConfig, PAID_STATUS_CONFIG } from "@/lib/status-config";
 import { toast } from "sonner";
+import { PlusIcon } from "@heroicons/react/24/outline";
+import { Button } from "@/components/ui/button";
+import { CreateQuoteModal } from "@/components/modals/CreateQuoteModal";
+import { CreateInvoiceModal } from "@/components/modals/CreateInvoiceModal";
+import { CreateReportModal } from "@/components/modals/CreateReportModal";
+import { QuoteSideSheet } from "@/components/sheets/QuoteSideSheet";
+import { InvoiceSideSheet } from "@/components/sheets/InvoiceSideSheet";
+import { ReportSideSheet } from "@/components/sheets/ReportSideSheet";
+import { mutate } from "swr";
 
 type Assignee = { id: string; full_name: string | null; email: string | null };
+
+type QuoteItem = { id: string; title: string | null; status: string; total_amount: number; [key: string]: unknown };
+type InvoiceItem = { id: string; invoice_number: string | null; status: string; amount: number; total: number; [key: string]: unknown };
+type ReportItem = { id: string; title: string | null; type: string | null; status: string; [key: string]: unknown };
 
 type Job = {
     id: string;
@@ -24,7 +37,6 @@ type Job = {
     scheduled_date: string | null;
     project?: { id: string; title: string } | null;
     assignees: Assignee[];
-    lead?: { id: string; title: string } | null;
     company?: { id: string; name: string } | null;
     created_at: string;
 };
@@ -61,10 +73,15 @@ export function JobSideSheet({ job, open, onOpenChange, onUpdate }: JobSideSheet
     const [activeTab, setActiveTab] = useState("details");
     const [data, setData] = useState<Job | null>(job);
     const [jobProjects, setJobProjects] = useState<{ id: string; title: string; status: string }[]>([]);
-    const [leads, setLeads] = useState<{ value: string; label: string }[]>([]);
     const [companies, setCompanies] = useState<{ value: string; label: string }[]>([]);
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
     const [services, setServices] = useState<Service[]>([]);
+    const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+    const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [selectedQuote, setSelectedQuote] = useState<any>(null);
+    const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+    const [selectedReport, setSelectedReport] = useState<any>(null);
     const { data: statusData } = useStatusConfig("job");
     const statusConfig = toStatusConfig(statusData?.statuses ?? DEFAULT_JOB_STATUSES);
     const { data: quotesData } = useJobQuotes(activeTab === "quotes" ? job?.id ?? null : null);
@@ -84,9 +101,6 @@ export function JobSideSheet({ job, open, onOpenChange, onUpdate }: JobSideSheet
 
     useEffect(() => {
         const supabase = createClient();
-        supabase.from("leads").select("id, title").then(({ data: lds }) => {
-            if (lds) setLeads(lds.map((o) => ({ value: o.id, label: o.title })));
-        });
         supabase.from("companies").select("id, name").then(({ data: comps }) => {
             if (comps) setCompanies(comps.map((c) => ({ value: c.id, label: c.name })));
         });
@@ -217,7 +231,6 @@ export function JobSideSheet({ job, open, onOpenChange, onUpdate }: JobSideSheet
                                 { label: "Scheduled Date", value: data.scheduled_date ? new Date(data.scheduled_date).toLocaleDateString("en-AU", { dateStyle: "medium" }) : null, dbColumn: "scheduled_date", type: "date", rawValue: data.scheduled_date },
                                 { label: "Paid Status", value: paidStatusConfig[data.paid_status]?.label || "Not Paid", dbColumn: "paid_status", type: "select", rawValue: data.paid_status, options: Object.entries(paidStatusConfig).map(([k, v]) => ({ value: k, label: v.label })) },
                                 { label: "Payment Received", value: `$${(data.total_payment_received || 0).toLocaleString()}`, dbColumn: "total_payment_received", type: "number", rawValue: data.total_payment_received || 0 },
-                                { label: "Lead", value: data.lead?.title, dbColumn: "lead_id", type: "select", rawValue: data.lead?.id ?? null, options: leads },
                                 { label: "Company", value: data.company?.name, dbColumn: "company_id", type: "select", rawValue: data.company?.id ?? null, options: companies },
                                 { label: "Created", value: new Date(data.created_at).toLocaleDateString("en-AU", { dateStyle: "medium" }) },
                             ]}
@@ -228,8 +241,8 @@ export function JobSideSheet({ job, open, onOpenChange, onUpdate }: JobSideSheet
                     <div className="rounded-xl border border-border bg-card p-5 space-y-3">
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assignees</p>
                         <div className="space-y-2">
-                            {(data.assignees || []).map((a) => (
-                                <div key={a.id} className="flex items-center justify-between gap-3">
+                            {(data.assignees || []).map((a, idx) => (
+                                <div key={a.id ?? idx} className="flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-2.5">
                                         <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold">
                                             {(a.full_name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
@@ -305,6 +318,13 @@ export function JobSideSheet({ job, open, onOpenChange, onUpdate }: JobSideSheet
 
             {activeTab === "scopes" && (
                 <div className="space-y-3">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-base font-semibold text-foreground">Scopes</p>
+                        <Button size="sm" disabled>
+                            <PlusIcon className="w-3.5 h-3.5 mr-1" />
+                            New Scope
+                        </Button>
+                    </div>
                     {jobProjects.length === 0 ? (
                         <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
                             No scopes linked to this job
@@ -335,10 +355,17 @@ export function JobSideSheet({ job, open, onOpenChange, onUpdate }: JobSideSheet
 
             {activeTab === "quotes" && (
                 <div className="space-y-2 px-1">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-base font-semibold text-foreground">Quotes</p>
+                        <Button size="sm" onClick={() => setQuoteModalOpen(true)}>
+                            <PlusIcon className="w-3.5 h-3.5 mr-1" />
+                            New Quote
+                        </Button>
+                    </div>
                     {(quotesData?.items || []).length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">No quotes yet</p>
-                    ) : (quotesData?.items || []).map((q: any) => (
-                        <div key={q.id} className="flex items-center justify-between p-3 rounded-xl border bg-card text-sm">
+                    ) : (quotesData?.items || []).map((q: QuoteItem) => (
+                        <div key={q.id} onClick={() => setSelectedQuote(q)} className="flex items-center justify-between p-3 rounded-xl border bg-card text-sm cursor-pointer hover:bg-secondary/50 transition-colors">
                             <div>
                                 <p className="font-medium">{q.title || "Untitled Quote"}</p>
                                 <p className="text-xs text-muted-foreground capitalize">{q.status}</p>
@@ -346,15 +373,34 @@ export function JobSideSheet({ job, open, onOpenChange, onUpdate }: JobSideSheet
                             <span className="font-semibold">${(q.total_amount || 0).toFixed(2)}</span>
                         </div>
                     ))}
+                    <CreateQuoteModal
+                        open={quoteModalOpen}
+                        onOpenChange={setQuoteModalOpen}
+                        defaultValues={{ jobId: data.id, companyId: data.company?.id }}
+                        onCreated={() => mutate(`/api/quotes?job_id=${data.id}`)}
+                    />
+                    <QuoteSideSheet
+                        quote={selectedQuote}
+                        open={!!selectedQuote}
+                        onOpenChange={(open) => { if (!open) setSelectedQuote(null); }}
+                        onUpdate={() => mutate(`/api/quotes?job_id=${data.id}`)}
+                    />
                 </div>
             )}
 
             {activeTab === "invoices" && (
                 <div className="space-y-2 px-1">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-base font-semibold text-foreground">Invoices</p>
+                        <Button size="sm" onClick={() => setInvoiceModalOpen(true)}>
+                            <PlusIcon className="w-3.5 h-3.5 mr-1" />
+                            New Invoice
+                        </Button>
+                    </div>
                     {(invoicesData?.items || []).length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">No invoices yet</p>
-                    ) : (invoicesData?.items || []).map((inv: any) => (
-                        <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl border bg-card text-sm">
+                    ) : (invoicesData?.items || []).map((inv: InvoiceItem) => (
+                        <div key={inv.id} onClick={() => setSelectedInvoice(inv)} className="flex items-center justify-between p-3 rounded-xl border bg-card text-sm cursor-pointer hover:bg-secondary/50 transition-colors">
                             <div>
                                 <p className="font-medium">{inv.invoice_number || "Untitled Invoice"}</p>
                                 <p className="text-xs text-muted-foreground capitalize">{inv.status}</p>
@@ -362,21 +408,52 @@ export function JobSideSheet({ job, open, onOpenChange, onUpdate }: JobSideSheet
                             <span className="font-semibold">${(inv.amount || 0).toFixed(2)}</span>
                         </div>
                     ))}
+                    <CreateInvoiceModal
+                        open={invoiceModalOpen}
+                        onOpenChange={setInvoiceModalOpen}
+                        defaultValues={{ job_id: data.id, company_id: data.company?.id }}
+                        onCreated={() => mutate(`/api/invoices?job_id=${data.id}`)}
+                    />
+                    <InvoiceSideSheet
+                        invoice={selectedInvoice}
+                        open={!!selectedInvoice}
+                        onOpenChange={(open) => { if (!open) setSelectedInvoice(null); }}
+                        onUpdate={() => mutate(`/api/invoices?job_id=${data.id}`)}
+                    />
                 </div>
             )}
 
             {activeTab === "reports" && (
                 <div className="space-y-2 px-1">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-base font-semibold text-foreground">Reports</p>
+                        <Button size="sm" onClick={() => setReportModalOpen(true)}>
+                            <PlusIcon className="w-3.5 h-3.5 mr-1" />
+                            New Report
+                        </Button>
+                    </div>
                     {(reportsData?.items || []).length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">No reports yet</p>
-                    ) : (reportsData?.items || []).map((r: any) => (
-                        <div key={r.id} className="flex items-center justify-between p-3 rounded-xl border bg-card text-sm">
+                    ) : (reportsData?.items || []).map((r: ReportItem) => (
+                        <div key={r.id} onClick={() => setSelectedReport(r)} className="flex items-center justify-between p-3 rounded-xl border bg-card text-sm cursor-pointer hover:bg-secondary/50 transition-colors">
                             <div>
                                 <p className="font-medium">{r.title || "Untitled Report"}</p>
                                 <p className="text-xs text-muted-foreground capitalize">{r.type?.replace(/_/g, " ") || "Report"} · {r.status}</p>
                             </div>
                         </div>
                     ))}
+                    <CreateReportModal
+                        open={reportModalOpen}
+                        onOpenChange={setReportModalOpen}
+                        defaultValues={{ job_id: data.id, company_id: data.company?.id }}
+                        onCreated={() => mutate(`/api/reports?job_id=${data.id}`)}
+                    />
+                    <ReportSideSheet
+                        report={selectedReport}
+                        open={!!selectedReport}
+                        onOpenChange={(open) => { if (!open) setSelectedReport(null); }}
+                        onUpdate={() => mutate(`/api/reports?job_id=${data.id}`)}
+                    />
                 </div>
             )}
 

@@ -100,7 +100,7 @@ interface DashboardControlsProps {
 
 export function DashboardControls({ children }: DashboardControlsProps) {
     return (
-        <div className="flex items-center justify-between gap-3 px-4 md:px-6 lg:px-10">
+        <div className="relative flex items-center justify-between gap-3 px-4 md:px-6 lg:px-10">
             {children}
         </div>
     );

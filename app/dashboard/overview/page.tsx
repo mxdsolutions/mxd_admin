@@ -13,12 +13,21 @@ import {
     tableCell,
     tableCellMuted,
 } from "@/lib/design-system";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { ArrowUpRightIcon } from "@heroicons/react/24/outline";
 import { Card, CardContent } from "@/components/ui/card";
 import { statLabelClass, statValueClass } from "@/lib/design-system";
 import { useStats, useMyTasks } from "@/lib/swr";
 import { MetricsSkeleton, TableSkeleton } from "@/components/ui/skeleton";
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    Tooltip,
+    ResponsiveContainer,
+    CartesianGrid,
+} from "recharts";
 
 const fadeInUp = {
     hidden: { y: 12, opacity: 0 },
@@ -44,6 +53,12 @@ type Task = {
     assigned_user: { id: string; full_name: string } | null;
 };
 
+type RevenueDataPoint = {
+    month: string;
+    revenue: number;
+    jobs: number;
+};
+
 const priorityLabels: Record<number, string> = { 1: "Urgent", 2: "High", 3: "Normal", 4: "Low" };
 const priorityColors: Record<number, string> = { 1: "bg-red-500", 2: "bg-orange-500", 3: "bg-blue-500", 4: "bg-gray-400" };
 
@@ -57,11 +72,17 @@ export default function OverviewPage() {
     const stats = statsData?.stats || null;
     const activeJobs: ActiveJob[] = statsData?.activeJobs || [];
     const myTasks: Task[] = tasksData?.items || [];
+    const revenueChart: RevenueDataPoint[] = stats?.revenueChart || [];
+
+    // Calculate this month's revenue from chart data
+    const thisMonthRevenue = revenueChart.length > 0
+        ? revenueChart[revenueChart.length - 1].revenue
+        : 0;
 
     const statCards = [
-        { label: "Total Leads", value: stats?.totalOpportunities?.toLocaleString() || "0", href: "/dashboard/leads" },
+        { label: "Revenue This Month", value: formatCurrency(thisMonthRevenue), href: null },
+        { label: "Total Revenue", value: formatCurrency(stats?.totalRevenue || 0), href: null },
         { label: "Total Jobs", value: stats?.totalJobs?.toLocaleString() || "0", href: "/dashboard/jobs" },
-        { label: "Tasks Due", value: stats?.tasksDue?.toLocaleString() || "0", href: null },
     ];
 
     const jobsTable = (
@@ -183,8 +204,8 @@ export default function OverviewPage() {
     );
 
     return (
-        <DashboardPage className="space-y-6 max-w-[1200px] mx-auto">
-            {/* Stat Cards — horizontal scroll on mobile, grid on desktop */}
+        <DashboardPage className="space-y-6">
+            {/* Stat Cards */}
             {statsLoading ? (
                 <MetricsSkeleton count={3} />
             ) : (
@@ -199,8 +220,54 @@ export default function OverviewPage() {
                                     </CardContent>
                                 </Card>
                             );
-                            return card.href ? <Link key={i} href={card.href} className="shrink-0 min-w-[140px] flex-1">{inner}</Link> : inner;
+                            return card.href ? <Link key={i} href={card.href} className="shrink-0 min-w-[140px] flex-1">{inner}</Link> : <div key={i} className="shrink-0 min-w-[140px] flex-1">{inner}</div>;
                         })}
+                    </div>
+                </motion.div>
+            )}
+
+            {/* Revenue Chart */}
+            {!statsLoading && revenueChart.length > 0 && (
+                <motion.div variants={fadeInUp} className="px-4 md:px-6 lg:px-10">
+                    <div className="rounded-2xl border border-border bg-card p-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-sm font-bold tracking-tight">Revenue</h2>
+                            <span className="text-xs text-muted-foreground">Last 6 months</span>
+                        </div>
+                        <div className="h-[240px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={revenueChart} barSize={32}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                    <XAxis
+                                        dataKey="month"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                                    />
+                                    <YAxis
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                                        tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
+                                    />
+                                    <Tooltip
+                                        cursor={{ fill: "var(--secondary)", opacity: 0.5 }}
+                                        contentStyle={{
+                                            backgroundColor: "var(--card)",
+                                            border: "1px solid var(--border)",
+                                            borderRadius: "12px",
+                                            fontSize: "13px",
+                                        }}
+                                        formatter={(value: number) => [formatCurrency(value), "Revenue"]}
+                                    />
+                                    <Bar
+                                        dataKey="revenue"
+                                        fill="var(--foreground)"
+                                        radius={[6, 6, 0, 0]}
+                                    />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
                 </motion.div>
             )}

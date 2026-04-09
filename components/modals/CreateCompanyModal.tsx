@@ -89,14 +89,14 @@ export function CreateCompanyModal({ open, onOpenChange, onCreated }: CreateComp
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>New Company</DialogTitle>
                         <DialogDescription>Add a company to your CRM.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Company Name *</label>
+                            <label className="text-sm font-medium text-muted-foreground">Company Name *</label>
                             <Input
                                 autoFocus
                                 placeholder="Acme Corp"
@@ -107,7 +107,7 @@ export function CreateCompanyModal({ open, onOpenChange, onCreated }: CreateComp
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Website</label>
+                            <label className="text-sm font-medium text-muted-foreground">Website</label>
                             <Input
                                 placeholder="https://acme.com"
                                 value={website}
@@ -118,7 +118,7 @@ export function CreateCompanyModal({ open, onOpenChange, onCreated }: CreateComp
 
                         {/* Contact selector */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Contact</label>
+                            <label className="text-sm font-medium text-muted-foreground">Contact</label>
                             <div className="relative">
                                 <Input
                                     placeholder="Search or create contact..."

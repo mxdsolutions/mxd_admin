@@ -42,27 +42,15 @@ export const contactSchema = z.object({
     job_title: z.string().optional(),
     company_id: z.string().uuid().optional().nullable(),
     status: z.string().optional(),
+    address: z.string().optional().nullable(),
+    city: z.string().optional().nullable(),
+    state: z.string().optional().nullable(),
+    postcode: z.string().optional().nullable(),
 });
 
 export const contactUpdateSchema = z.object({
     id: z.string().uuid("Valid ID is required"),
 }).merge(contactSchema.partial());
-
-export const leadSchema = z.object({
-    title: z.string().min(1, "Lead title is required"),
-    value: z.number().min(0, "Value must be non-negative"),
-    probability: z.number().min(0).max(100).optional().nullable(),
-    expected_close: z.string().optional().nullable(),
-    contact_id: z.string().uuid().optional().nullable(),
-    company_id: z.string().uuid().optional().nullable(),
-    stage: z.string().optional(),
-    assigned_to: z.string().uuid().optional().nullable(),
-    reference_id: z.string().max(50).optional().nullable(),
-});
-
-export const leadUpdateSchema = z.object({
-    id: z.string().uuid("Valid ID is required"),
-}).merge(leadSchema.partial());
 
 export const serviceSchema = z.object({
     name: z.string().min(1, "Service name is required"),
@@ -83,10 +71,9 @@ export const noteSchema = z.object({
     mentioned_user_ids: z.array(z.string().uuid()).optional(),
 });
 
-// --- Line Item Schemas (shared pattern for lead & job line items) ---
+// --- Line Item Schemas ---
 
 export const lineItemSchema = z.object({
-    lead_id: z.string().uuid().optional(),
     job_id: z.string().uuid().optional(),
     product_id: z.string().uuid(),
     quantity: z.number().min(0, "Quantity must be non-negative"),
@@ -108,7 +95,6 @@ export const jobSchema = z.object({
     project_id: z.string().uuid().optional().nullable(),
     assigned_to: z.string().uuid().optional().nullable(),
     scheduled_date: z.string().optional().nullable(),
-    lead_id: z.string().uuid().optional().nullable(),
     company_id: z.string().uuid().optional().nullable(),
     paid_status: z.enum(["not_paid", "partly_paid", "paid_in_full"]).optional(),
     total_payment_received: z.number().min(0).optional(),
@@ -131,21 +117,6 @@ export const sendEmailSchema = z.object({
 
 export const replyEmailSchema = z.object({
     comment: z.string().min(1, "Reply content is required"),
-});
-
-// --- Job From Lead Schema ---
-
-export const jobFromLeadSchema = z.object({
-    lead_id: z.string().uuid("Valid lead ID is required"),
-    description: z.string().min(1, "Description is required").max(1000),
-    company_id: z.string().uuid("Valid company ID is required"),
-    assigned_to: z.string().uuid().optional().nullable(),
-    line_items: z.array(z.object({
-        product_id: z.string().uuid(),
-        product_name: z.string().min(1).max(500),
-        quantity: z.number().min(0),
-        unit_price: z.number().min(0),
-    })).min(1, "At least one line item is required"),
 });
 
 // --- Quote Schemas ---
@@ -173,6 +144,7 @@ export const createQuoteWithItemsSchema = z.object({
     description: z.string().max(2000).optional().nullable(),
     company_id: z.string().uuid().optional().nullable(),
     contact_id: z.string().uuid().optional().nullable(),
+    job_id: z.string().uuid().optional().nullable(),
     valid_until: z.string().optional().nullable(),
     material_margin: z.number().min(0).max(100),
     labour_margin: z.number().min(0).max(100),
@@ -314,7 +286,7 @@ const statusItemSchema = z.object({
 
 export const statusConfigUpdateSchema = z.object({
     tenant_id: z.string().uuid(),
-    entity_type: z.enum(["lead", "job"]),
+    entity_type: z.enum(["job"]),
     statuses: z.array(statusItemSchema)
         .min(1, "At least one status is required")
         .refine(
@@ -377,8 +349,6 @@ export type OnboardingInput = z.infer<typeof onboardingSchema>;
 export type CompanyInput = z.infer<typeof companySchema>;
 export type ContactInput = z.infer<typeof contactSchema>;
 export type ContactUpdateInput = z.infer<typeof contactUpdateSchema>;
-export type LeadInput = z.infer<typeof leadSchema>;
-export type LeadUpdateInput = z.infer<typeof leadUpdateSchema>;
 export type ServiceInput = z.infer<typeof serviceSchema>;
 export type ServiceUpdateInput = z.infer<typeof serviceUpdateSchema>;
 export type NoteInput = z.infer<typeof noteSchema>;

@@ -16,14 +16,14 @@ export const GET = withAuth(async (_request, { supabase, tenantId }) => {
         statsResult,
         recentTransactionsResult,
         activeJobsResult,
-        chartResult,
         tasksDueResult,
+        revenueChartResult,
     ] = await Promise.all([
         supabase.rpc("get_tenant_stats", { p_tenant_id: tenantId }),
         supabase.from("jobs").select(`id, amount, status, updated_at, project:projects(title), assigned_to:profiles!jobs_assigned_to_fkey(full_name)`).eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(5),
         supabase.from("jobs").select(`id, description, amount, status, scheduled_date, project:projects(title), assigned_to:profiles!jobs_assigned_to_fkey(full_name)`).eq("tenant_id", tenantId).not("status", "in", '("Completed","Cancelled","cancelled","completed")').order("scheduled_date", { ascending: true }).limit(10),
-        supabase.rpc("get_lead_chart_data", { p_tenant_id: tenantId }),
         supabase.from("tasks").select("*", { count: "exact", head: true }).eq("tenant_id", tenantId).in("status", ["pending", "in_progress"]).lte("due_date", sevenDaysFromNow),
+        supabase.rpc("get_revenue_chart_data", { p_tenant_id: tenantId }),
     ]);
 
     const coreStats = statsResult.data || {};
@@ -37,13 +37,10 @@ export const GET = withAuth(async (_request, { supabase, tenantId }) => {
             activeJobs: coreStats.activeJobs || 0,
             totalJobs: coreStats.totalJobs || 0,
             totalRevenue: coreStats.totalRevenue || 0,
-            totalLeads: coreStats.totalLeads || 0,
-            pipelineValue: coreStats.pipelineValue || 0,
-            wonRevenueThisMonth: coreStats.wonRevenueThisMonth || 0,
             totalCompanies: coreStats.totalCompanies || 0,
             totalContacts: coreStats.totalContacts || 0,
             tasksDue: tasksDueResult.count || 0,
-            leadChart: chartResult.data || [],
+            revenueChart: revenueChartResult.data || [],
         },
         recentTransactions: (recentTransactionsResult.data || []).map(t => {
             const profile = unwrapJoin(t.assigned_to as JoinedProfile);

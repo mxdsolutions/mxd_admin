@@ -80,14 +80,14 @@ export function CreateTenantModal({ open, onOpenChange, onCreated }: CreateTenan
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>New Tenant</DialogTitle>
                     <DialogDescription>Create a new tenant account and owner.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Company Name *</label>
+                        <label className="text-sm font-medium text-muted-foreground">Company Name *</label>
                         <Input
                             autoFocus
                             placeholder="Acme Construction"
@@ -98,7 +98,7 @@ export function CreateTenantModal({ open, onOpenChange, onCreated }: CreateTenan
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">URL Slug *</label>
+                        <label className="text-sm font-medium text-muted-foreground">URL Slug *</label>
                         <div className="flex items-center gap-2">
                             <Input
                                 placeholder="acme-construction"
@@ -111,7 +111,7 @@ export function CreateTenantModal({ open, onOpenChange, onCreated }: CreateTenan
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Owner Name *</label>
+                        <label className="text-sm font-medium text-muted-foreground">Owner Name *</label>
                         <Input
                             placeholder="John Smith"
                             value={form.owner_name}
@@ -121,7 +121,7 @@ export function CreateTenantModal({ open, onOpenChange, onCreated }: CreateTenan
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Owner Email *</label>
+                        <label className="text-sm font-medium text-muted-foreground">Owner Email *</label>
                         <Input
                             type="email"
                             placeholder="john@acmeconstruction.com"
@@ -132,7 +132,7 @@ export function CreateTenantModal({ open, onOpenChange, onCreated }: CreateTenan
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Plan</label>
+                        <label className="text-sm font-medium text-muted-foreground">Plan</label>
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 type="button"
@@ -162,7 +162,7 @@ export function CreateTenantModal({ open, onOpenChange, onCreated }: CreateTenan
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Max Users</label>
+                        <label className="text-sm font-medium text-muted-foreground">Max Users</label>
                         <Input
                             type="number"
                             min={1}

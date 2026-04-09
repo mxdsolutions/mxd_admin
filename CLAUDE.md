@@ -50,7 +50,7 @@ lib/
   permissions.ts          # Permission checking (hasPermission, roles)
   tenant.ts               # Tenant resolution (getTenantId, getTenantBranding)
   tenant-context.tsx      # Client-side tenant/permission hooks
-  swr.ts                  # SWR hooks (useCompanies, useLeads, etc.)
+  swr.ts                  # SWR hooks (useCompanies, useJobs, useContacts, etc.)
   utils.ts                # cn(), formatCurrency(), timeAgo(), getInitials()
   validation.ts           # Zod schemas for all entities
 docs/
@@ -249,7 +249,7 @@ Use `SideSheetLayout` from `features/side-sheets/`:
 - Server-side: `getTenantId()` from `lib/tenant.ts`
 - Client-side: `useTenant()` and `usePermission()` from `lib/tenant-context.tsx`
 - Roles: Owner > Admin > Manager > Member > Viewer
-- Check permissions: `hasPermission(userId, tenantId, "crm.leads", "write")`
+- Check permissions: `hasPermission(userId, tenantId, "crm.companies", "write")`
 
 ### Server Actions
 

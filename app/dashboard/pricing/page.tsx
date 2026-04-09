@@ -23,6 +23,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { usePricing } from "@/lib/swr";
 import { PricingSideSheet } from "@/components/sheets/PricingSideSheet";
+import { CreateMaterialModal } from "@/components/modals/CreateMaterialModal";
+import { PlusIcon } from "@heroicons/react/24/outline";
 
 type PricingItem = {
     Matrix_ID: string | null;
@@ -46,6 +48,7 @@ export default function PricingPage() {
     const [page, setPage] = useState(0);
     const [selectedItem, setSelectedItem] = useState<PricingItem | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
 
     const { data, isLoading } = usePricing(
         debouncedSearch || undefined,
@@ -72,7 +75,7 @@ export default function PricingPage() {
                 <>
                     <DashboardControls>
                         <div className="flex items-center gap-3">
-                            <div className="relative flex-1 max-w-md">
+                            <div className="relative flex-1 min-w-[320px] max-w-xl">
                                 <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     placeholder="Search item, trade, category..."
@@ -82,6 +85,10 @@ export default function PricingPage() {
                                 />
                             </div>
                         </div>
+                        <Button onClick={() => setCreateOpen(true)}>
+                            <PlusIcon className="w-4 h-4 mr-2" />
+                            Add Material
+                        </Button>
                     </DashboardControls>
                 </>
             }
@@ -122,14 +129,13 @@ export default function PricingPage() {
                 <table className={tableBase + " border-collapse min-w-full"}>
                     <thead className={tableHead + " sticky top-0 z-10"}>
                         <tr>
-                            <th className={tableHeadCell + " pl-4 md:pl-6 lg:pl-10 pr-4"}>Item</th>
+                            <th className={tableHeadCell + " pl-4 md:pl-6 lg:pl-10 pr-4"}>Description</th>
+                            <th className={tableHeadCell + " px-4 hidden sm:table-cell"}>Status</th>
                             <th className={tableHeadCell + " px-4"}>Trade</th>
-                            <th className={tableHeadCell + " px-4 hidden sm:table-cell"}>Category</th>
                             <th className={tableHeadCell + " px-4 hidden md:table-cell"}>UOM</th>
-                            <th className={tableHeadCell + " px-4 text-right"}>Total Rate</th>
                             <th className={tableHeadCell + " px-4 text-right hidden md:table-cell"}>Material</th>
                             <th className={tableHeadCell + " px-4 text-right hidden lg:table-cell"}>Labour</th>
-                            <th className={tableHeadCell + " px-4 hidden sm:table-cell"}>Status</th>
+                            <th className={tableHeadCell + " px-4 text-right"}>Total Rate</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -142,26 +148,6 @@ export default function PricingPage() {
                                 <td className={tableCell + " pl-4 md:pl-6 lg:pl-10 pr-4"}>
                                     <span className="font-semibold text-sm">{item.Item || "—"}</span>
                                 </td>
-                                <td className={tableCell + " px-4"}>
-                                    <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-medium border-border/50">
-                                        {item.Trade || "—"}
-                                    </Badge>
-                                </td>
-                                <td className={tableCellMuted + " px-4 hidden sm:table-cell"}>
-                                    {item.Category || "—"}
-                                </td>
-                                <td className={tableCellMuted + " px-4 hidden md:table-cell"}>
-                                    {item.UOM || "—"}
-                                </td>
-                                <td className={tableCell + " px-4 text-right"}>
-                                    <span className="font-bold text-sm">{item.Total_Rate || "—"}</span>
-                                </td>
-                                <td className={tableCellMuted + " px-4 text-right hidden md:table-cell"}>
-                                    {item.Material_Cost || "—"}
-                                </td>
-                                <td className={tableCellMuted + " px-4 text-right hidden lg:table-cell"}>
-                                    {item.Labour_Cost || "—"}
-                                </td>
                                 <td className={tableCell + " px-4 hidden sm:table-cell"}>
                                     {item.Pricing_Status && (
                                         <div className="flex items-center gap-2">
@@ -173,11 +159,28 @@ export default function PricingPage() {
                                         </div>
                                     )}
                                 </td>
+                                <td className={tableCell + " px-4"}>
+                                    <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-medium border-border/50">
+                                        {item.Trade || "—"}
+                                    </Badge>
+                                </td>
+                                <td className={tableCellMuted + " px-4 hidden md:table-cell"}>
+                                    {item.UOM || "—"}
+                                </td>
+                                <td className={tableCellMuted + " px-4 text-right hidden md:table-cell"}>
+                                    {item.Material_Cost || "—"}
+                                </td>
+                                <td className={tableCellMuted + " px-4 text-right hidden lg:table-cell"}>
+                                    {item.Labour_Cost || "—"}
+                                </td>
+                                <td className={tableCell + " px-4 text-right"}>
+                                    <span className="font-bold text-sm">{item.Total_Rate || "—"}</span>
+                                </td>
                             </tr>
                         ))}
                         {items.length === 0 && (
                             <tr>
-                                <td colSpan={8} className="text-center py-10 text-muted-foreground text-sm">
+                                <td colSpan={7} className="text-center py-10 text-muted-foreground text-sm">
                                     No pricing items found.
                                 </td>
                             </tr>
@@ -191,6 +194,15 @@ export default function PricingPage() {
                 item={selectedItem}
                 open={sheetOpen}
                 onOpenChange={setSheetOpen}
+            />
+
+            <CreateMaterialModal
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                onCreated={() => {
+                    setPage(0);
+                    setDebouncedSearch(search);
+                }}
             />
         </>
     );

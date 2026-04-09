@@ -9,7 +9,6 @@ export const DEFAULT_MODULES: TenantModule[] = [
     { module_id: "operations", enabled: true },
     { module_id: "finance", enabled: true },
     // CRM sub-modules
-    { module_id: "crm.leads", enabled: true },
     { module_id: "crm.companies", enabled: true },
     { module_id: "crm.contacts", enabled: true },
     // Operations sub-modules

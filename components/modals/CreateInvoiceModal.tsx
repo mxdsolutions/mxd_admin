@@ -126,11 +126,11 @@ export function CreateInvoiceModal({ open, onOpenChange, onCreated, defaultValue
                 <div className="space-y-4 pt-2">
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Reference</label>
+                            <label className="text-sm font-medium text-muted-foreground mb-1 block">Reference</label>
                             <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="INV-001" className="rounded-xl" />
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Company</label>
+                            <label className="text-sm font-medium text-muted-foreground mb-1 block">Company</label>
                             <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-input bg-background text-sm">
                                 <option value="">Select company...</option>
                                 {companies.map((c: { id: string; name: string }) => (
@@ -142,7 +142,7 @@ export function CreateInvoiceModal({ open, onOpenChange, onCreated, defaultValue
 
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Contact</label>
+                            <label className="text-sm font-medium text-muted-foreground mb-1 block">Contact</label>
                             <select value={contactId} onChange={(e) => setContactId(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-input bg-background text-sm">
                                 <option value="">Select contact...</option>
                                 {contacts.map((c: { id: string; first_name: string; last_name: string }) => (
@@ -151,7 +151,7 @@ export function CreateInvoiceModal({ open, onOpenChange, onCreated, defaultValue
                             </select>
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Job</label>
+                            <label className="text-sm font-medium text-muted-foreground mb-1 block">Job</label>
                             <select value={jobId} onChange={(e) => setJobId(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-input bg-background text-sm">
                                 <option value="">Select job...</option>
                                 {jobs.map((j: { id: string; description: string }) => (
@@ -163,11 +163,11 @@ export function CreateInvoiceModal({ open, onOpenChange, onCreated, defaultValue
 
                     <div className="grid grid-cols-3 gap-3">
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Issue Date</label>
+                            <label className="text-sm font-medium text-muted-foreground mb-1 block">Issue Date</label>
                             <Input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className="rounded-xl" />
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Due Date</label>
+                            <label className="text-sm font-medium text-muted-foreground mb-1 block">Due Date</label>
                             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="rounded-xl" />
                         </div>
                         <div className="flex items-end pb-1">
@@ -180,7 +180,7 @@ export function CreateInvoiceModal({ open, onOpenChange, onCreated, defaultValue
 
                     {/* Line Items */}
                     <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-2 block">Line Items</label>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Line Items</label>
                         <div className="space-y-2">
                             {lineItems.map((li, i) => (
                                 <div key={i} className="flex gap-2 items-start">
@@ -216,7 +216,7 @@ export function CreateInvoiceModal({ open, onOpenChange, onCreated, defaultValue
                     </div>
 
                     <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes</label>
+                        <label className="text-sm font-medium text-muted-foreground mb-1 block">Notes</label>
                         <textarea
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}

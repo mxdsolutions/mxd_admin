@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense } from "react";
+import { cn } from "@/lib/utils";
 import { DashboardControls } from "@/components/dashboard/DashboardPage";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
 import { usePageTitle } from "@/lib/page-title-context";
@@ -43,7 +44,7 @@ export default function SchedulePage() {
 function SchedulePageContent() {
     usePageTitle("Schedule");
 
-    const [view, setView] = useState<CalendarView>("month");
+    const [view, setView] = useState<CalendarView>("week");
     const [currentMonth, setCurrentMonth] = useState(() => new Date());
     const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -158,8 +159,9 @@ function SchedulePageContent() {
         }
     };
 
-    const handleAddEntry = () => {
+    const handleAddEntry = (dateKey?: string) => {
         setEditingEntry(null);
+        if (dateKey) setSelectedDate(dateKey);
         setModalOpen(true);
     };
 
@@ -184,7 +186,42 @@ function SchedulePageContent() {
             <ScrollableTableLayout
                 header={
                     <DashboardControls>
+                        {/* Left: Today + View toggle */}
                         <div className="flex items-center gap-2">
+                            <Button
+                                variant="secondary"
+                                className="rounded-full px-4"
+                                onClick={goToToday}
+                            >
+                                Today
+                            </Button>
+                            <div className="flex items-center rounded-full border border-border/50 p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => switchView("week")}
+                                    className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                                        view === "week"
+                                            ? "bg-foreground text-background"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                                >
+                                    Week
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => switchView("month")}
+                                    className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                                        view === "month"
+                                            ? "bg-foreground text-background"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                                >
+                                    Month
+                                </button>
+                            </div>
+                        </div>
+                        {/* Centre: Date pagination */}
+                        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
                             <Button
                                 variant="outline"
                                 size="icon"
@@ -204,47 +241,19 @@ function SchedulePageContent() {
                             >
                                 <ChevronRightIcon className="w-4 h-4" />
                             </Button>
-                            <Button
-                                variant="secondary"
-                                className="rounded-full px-4 ml-1"
-                                onClick={goToToday}
-                            >
-                                Today
-                            </Button>
-                            {/* View toggle */}
-                            <div className="flex items-center rounded-full border border-border/50 p-0.5 ml-2">
-                                <button
-                                    type="button"
-                                    onClick={() => switchView("week")}
-                                    className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-                                        view === "week"
-                                            ? "bg-primary text-primary-foreground"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    }`}
-                                >
-                                    Week
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => switchView("month")}
-                                    className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-                                        view === "month"
-                                            ? "bg-primary text-primary-foreground"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    }`}
-                                >
-                                    Month
-                                </button>
-                            </div>
                         </div>
-                        <Button className="rounded-full px-6 shrink-0" onClick={handleAddEntry}>
+                        {/* Right: Schedule button */}
+                        <Button className="rounded-full px-6 shrink-0" onClick={() => handleAddEntry()}>
                             <PlusIcon className="w-4 h-4 mr-2" />
                             Schedule Job
                         </Button>
                     </DashboardControls>
                 }
             >
-                <div className="px-4 md:px-6 lg:px-10 space-y-6 py-6">
+                <div className={cn(
+                    "px-4 md:px-6 lg:px-10",
+                    view === "week" ? "flex flex-col h-full min-h-0" : "space-y-6 py-6",
+                )}>
                     <CalendarGrid
                         view={view}
                         currentMonth={currentMonth}
@@ -253,16 +262,21 @@ function SchedulePageContent() {
                         entriesByDate={entriesByDate}
                         statusConfig={jobStatusConfig}
                         onSelectDate={setSelectedDate}
-                    />
-                    <DayDetailList
-                        entries={detailEntries}
-                        dateLabel={detailLabel}
-                        statusConfig={jobStatusConfig}
                         onJobClick={handleJobClick}
-                        onEditEntry={handleEditEntry}
-                        onDeleteEntry={handleDeleteEntry}
-                        loading={isLoading}
+                        onDateClick={(dateKey) => handleAddEntry(dateKey)}
                     />
+                    {view === "week" && <div className="shrink-0 h-6" />}
+                    {view === "month" && (
+                        <DayDetailList
+                            entries={detailEntries}
+                            dateLabel={detailLabel}
+                            statusConfig={jobStatusConfig}
+                            onJobClick={handleJobClick}
+                            onEditEntry={handleEditEntry}
+                            onDeleteEntry={handleDeleteEntry}
+                            loading={isLoading}
+                        />
+                    )}
                 </div>
             </ScrollableTableLayout>
 

@@ -14,15 +14,8 @@ const JOB_CONFIG: LineItemConfig = {
     parentTotalColumn: "amount",
 };
 
-const LEAD_CONFIG: LineItemConfig = {
-    lineItemTable: "lead_line_items",
-    parentTable: "leads",
-    parentIdColumn: "lead_id",
-    parentTotalColumn: "value",
-};
-
 /**
- * Recalculate the total for a parent entity (job or lead)
+ * Recalculate the total for a parent entity (job)
  * based on its line items.
  *
  * NOTE: This is not atomic — concurrent requests can produce incorrect totals.
@@ -59,13 +52,6 @@ async function recalcTotal(
 
 export function recalcJobAmount(supabase: SupabaseClient, jobId: string) {
     return recalcTotal(supabase, JOB_CONFIG, jobId);
-}
-
-export function recalcLeadValue(
-    supabase: SupabaseClient,
-    leadId: string
-) {
-    return recalcTotal(supabase, LEAD_CONFIG, leadId);
 }
 
 /**

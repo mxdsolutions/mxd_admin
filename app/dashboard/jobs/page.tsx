@@ -42,7 +42,6 @@ type Job = {
     total_payment_received: number;
     project?: { id: string; title: string } | null;
     assignees: Assignee[];
-    lead?: { id: string; title: string } | null;
     company?: { id: string; name: string } | null;
     scheduled_date: string;
     created_at: string;
@@ -121,7 +120,7 @@ function JobsPageContent() {
                 header={
                     <DashboardControls>
                         <div className="flex items-center gap-3">
-                            <div className="relative flex-1 max-w-md">
+                            <div className="relative flex-1 min-w-[320px] max-w-xl">
                                 <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     placeholder="Search jobs, companies or members..."

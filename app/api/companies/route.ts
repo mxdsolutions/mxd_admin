@@ -5,12 +5,13 @@ import { validationError, serverError } from "@/app/api/_lib/errors";
 import { companySchema } from "@/lib/validation";
 import { pushCompanyToXero } from "@/lib/xero-sync";
 
-export const GET = withAuth(async (request, { supabase }) => {
+export const GET = withAuth(async (request, { supabase, tenantId }) => {
     const { limit, offset, search } = parsePagination(request);
 
     let query = supabase
         .from("companies")
         .select("*", { count: "exact" })
+        .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
 

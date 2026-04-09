@@ -2,7 +2,15 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
-const MATT_USER_ID = "f63fc07f-6bd3-49db-a0cd-069e8989b19c";
+const SYSTEM_USER_ID = process.env.INQUIRY_SYSTEM_USER_ID || "f63fc07f-6bd3-49db-a0cd-069e8989b19c";
+
+const ALLOWED_ORIGINS = (process.env.INQUIRY_ALLOWED_ORIGINS || "").split(",").filter(Boolean);
+
+function getAllowedOrigin(origin: string): string | null {
+    if (!origin) return null;
+    if (ALLOWED_ORIGINS.length === 0) return origin; // No allowlist configured = allow all (dev)
+    return ALLOWED_ORIGINS.includes(origin) ? origin : null;
+}
 
 const inquirySchema = z.object({
     name: z.string().min(1).max(200),
@@ -92,7 +100,7 @@ export async function POST(request: Request) {
                 email,
                 phone,
                 status: "active",
-                created_by: MATT_USER_ID,
+                created_by: SYSTEM_USER_ID,
                 tenant_id: tenantId,
             })
             .select("id")
@@ -126,7 +134,7 @@ export async function POST(request: Request) {
                     website: domain,
                     email,
                     status: "active",
-                    created_by: MATT_USER_ID,
+                    created_by: SYSTEM_USER_ID,
                     tenant_id: tenantId,
                 })
                 .select("id")
@@ -148,55 +156,52 @@ export async function POST(request: Request) {
         }
     }
 
-    // 3. Create lead
+    // 3. Create job from inquiry
     const servicesLabel = services
         ? services.split(",").map(s => s.trim().replace(/-/g, " ")).join(", ")
         : "";
 
-    const leadTitle = `Website Inquiry — ${company}`;
-    const leadDescription = [
+    const jobDescription = [
+        `Website Inquiry — ${company}`,
         message && `Message: ${message}`,
         servicesLabel && `Services: ${servicesLabel}`,
         source && `Source page: ${source}`,
     ].filter(Boolean).join("\n\n");
 
-    const { data: lead, error: leadError } = await supabase
-        .from("leads")
+    const { data: job, error: jobError } = await supabase
+        .from("jobs")
         .insert({
-            title: leadTitle,
-            description: leadDescription || null,
-            source: "website",
+            description: jobDescription,
             status: "new",
-            priority: "medium",
-            contact_id: contactId,
             company_id: companyId,
-            assigned_to: MATT_USER_ID,
-            created_by: MATT_USER_ID,
+            assigned_to: SYSTEM_USER_ID,
+            created_by: SYSTEM_USER_ID,
             tenant_id: tenantId,
         })
         .select("id")
         .single();
 
-    if (leadError || !lead) {
-        console.error("Failed to create lead:", leadError);
+    if (jobError || !job) {
+        console.error("Failed to create job:", jobError);
         return NextResponse.json({ error: "Failed to process inquiry" }, { status: 500 });
     }
 
     // Log activity
     await supabase.from("activity_logs").insert({
-        entity_type: "lead",
-        entity_id: lead.id,
+        entity_type: "job",
+        entity_id: job.id,
         action: "created",
         changes: { source: "website_inquiry", services, original_message: message },
-        performed_by: MATT_USER_ID,
+        performed_by: SYSTEM_USER_ID,
         tenant_id: tenantId,
     });
 
-    const corsHeaders = {
-        "Access-Control-Allow-Origin": origin,
+    const allowedOrigin = getAllowedOrigin(origin);
+    const corsHeaders: Record<string, string> = {
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
     };
+    if (allowedOrigin) corsHeaders["Access-Control-Allow-Origin"] = allowedOrigin;
 
     return NextResponse.json(
         { success: true },
@@ -207,13 +212,13 @@ export async function POST(request: Request) {
 // Handle CORS preflight
 export async function OPTIONS(request: Request) {
     const origin = request.headers.get("origin") ?? "";
-    return new NextResponse(null, {
-        status: 204,
-        headers: {
-            "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-            "Access-Control-Max-Age": "86400",
-        },
-    });
+    const allowedOrigin = getAllowedOrigin(origin);
+    const headers: Record<string, string> = {
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "86400",
+    };
+    if (allowedOrigin) headers["Access-Control-Allow-Origin"] = allowedOrigin;
+
+    return new NextResponse(null, { status: 204, headers });
 }

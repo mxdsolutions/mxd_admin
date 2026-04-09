@@ -9,19 +9,100 @@ This document outlines the core tokens, utility classes, and design philosophy d
 
 ## Typography
 
-| Role | Font | CSS Class / Component |
-|------|------|-----------------------|
-| **Page headings** | Open Sans | `pageHeaderClass` |
-| **Hero headings** | Open Sans | `heroHeaderClass` |
-| **Section headers** | Open Sans | `sectionHeaderClass` |
-| **Body text** | Open Sans | `bodyTextClass` |
-| **Captions** | Open Sans | `captionClass` |
-| **Labels** | Open Sans | `labelClass` (uppercase, tracked) |
-| **Stat values** | Open Sans | `statValueClass` (bold focal point) |
+All tokens are exported from `@/lib/design-system.ts`. Import and use them to keep sizing/weight consistent.
 
-### Using the Sans Font
+### Font Stack
 
-Open Sans is the primary typeface. It is applied globally via `globals.css` and can be forced via the `sansFont` style object or the `font-sans` Tailwind class.
+| Role | Font | Application |
+|------|------|-------------|
+| **Primary** | Open Sans | All UI text — applied globally via `--font-open-sans` on `<body>` |
+| **Display** | Bebas Neue | Accent/hero headings — available via `--font-bebas-neue` |
+
+### Type Scale Reference
+
+| Size Token | Tailwind | px | rem | Usage |
+|-----------|----------|-----|------|-------|
+| `text-[10px]` | — | 10 | 0.625 | Timestamps, meta IDs |
+| `text-[11px]` | — | 11 | 0.688 | Stat labels, table headers, badges |
+| `text-xs` | built-in | 12 | 0.75 | Small captions |
+| `text-sm` | built-in | 14 | 0.875 | Body text, nav items, form labels, buttons |
+| `text-[15px]` | — | 15 | 0.938 | Dialog descriptions, detail field values |
+| `text-base` | built-in | 16 | 1.0 | Section headings inside sheets/tabs |
+| `text-[17px]` | — | 17 | 1.063 | Side sheet tab buttons |
+| `text-lg` | built-in | 18 | 1.125 | Page title (sticky header) |
+| `text-xl` | built-in | 20 | 1.25 | Dialog titles, stat values |
+| `text-[22px]` | — | 22 | 1.375 | Side sheet title |
+| `text-2xl` | built-in | 24 | 1.5 | Large page headings |
+| `text-3xl` | built-in | 30 | 1.875 | Auth page headings |
+| `text-4xl` → `md:text-5xl` | built-in | 36→48 | Responsive | Hero sub-heading |
+| `text-5xl` → `md:text-6xl` | built-in | 48→60 | Responsive | Hero main heading |
+
+### Headings
+
+| Role | Token | Size | Weight | Notes |
+|------|-------|------|--------|-------|
+| Page title (header bar) | `pageHeadingClass` | `text-lg` | `font-semibold` | `tracking-tight` |
+| Section heading (cards, tabs) | `sectionHeadingClass` | `text-base` | `font-semibold` | — |
+| Side sheet title | `sheetTitleClass` | `text-[22px]` | `font-bold` | `truncate leading-tight` |
+| Modal / dialog title | `dialogTitleClass` | `text-xl` | `font-semibold` | `leading-none tracking-tight` |
+| Hero heading | `heroHeadingClass` | `text-5xl md:text-6xl` | `font-bold` | `tracking-tight` |
+| Hero sub-heading | `heroSubheadingClass` | `text-4xl md:text-5xl` | `font-bold` | `tracking-tight` |
+
+### Body Text
+
+| Role | Token | Size | Weight | Color |
+|------|-------|------|--------|-------|
+| Standard body | `bodyClass` | `text-sm` | normal | `text-foreground` |
+| Prominent body | `bodyLargeClass` | `text-[15px]` | normal | `text-foreground` |
+| Muted / secondary | `bodyMutedClass` | `text-sm` | normal | `text-muted-foreground` |
+
+### Labels & Captions
+
+| Role | Token | Size | Weight | Styling |
+|------|-------|------|--------|---------|
+| Form field label | `fieldLabelClass` | `text-sm` | `font-medium` | `text-muted-foreground` |
+| Section label (uppercase) | `sectionLabelClass` | `text-[11px]` | `font-bold` | `uppercase tracking-wider text-muted-foreground` |
+| Section label (soft) | `sectionLabelSoftClass` | `text-xs` | `font-semibold` | `uppercase tracking-wider text-muted-foreground/60` |
+| Stat label | `statLabelClass` | `text-[11px]` | `font-medium` | `uppercase tracking-wide text-muted-foreground` |
+| Meta / timestamp | `metaClass` | `text-[10px]` | normal | `text-muted-foreground` |
+
+### Interactive Elements
+
+| Role | Token | Size | Weight | Notes |
+|------|-------|------|--------|-------|
+| Nav item | `navItemClass` | `text-sm` | `font-medium` | Sidebar links |
+| Tab button | `tabClass` | `text-[17px]` | `font-medium` | Side sheet tabs |
+| Badge / pill | `badgeClass` | `text-[11px]` | `font-semibold` | `uppercase tracking-wider` |
+| Button text | (via `button.tsx`) | `text-sm` | `font-medium` | Inherited from CVA variants |
+| Stat value | `statValueClass` | `text-xl` | `font-bold` | `tracking-tight` |
+
+### Weight Scale
+
+| Weight | Class | Usage |
+|--------|-------|-------|
+| 400 | `font-normal` | Body text, inputs, descriptions |
+| 500 | `font-medium` | Labels, buttons, nav items, tabs |
+| 600 | `font-semibold` | Section headings, dialog titles, badges |
+| 700 | `font-bold` | Page titles, sheet titles, stat values, table headers |
+
+### Responsive Typography
+
+Only hero/auth headings scale responsively. All dashboard typography is fixed-size:
+
+```
+Hero main:   text-5xl → md:text-6xl
+Hero sub:    text-4xl → md:text-5xl
+Calendar:    text-xs  → sm:text-sm
+```
+
+### Dark Surface Text (Sidebar)
+
+| State | Color |
+|-------|-------|
+| Active | `text-white` |
+| Default | `text-white/50` |
+| Section label | `text-white/30` |
+| Meta | `text-white/40` |
 
 ---
 
