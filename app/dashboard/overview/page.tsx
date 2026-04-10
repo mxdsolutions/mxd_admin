@@ -14,7 +14,7 @@ import {
     tableCellMuted,
 } from "@/lib/design-system";
 import { cn, formatCurrency } from "@/lib/utils";
-import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { IconSearch as MagnifyingGlassIcon } from "@tabler/icons-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
