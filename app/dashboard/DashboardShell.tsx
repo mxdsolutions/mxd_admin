@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/routes";
 import { useTenantOptional, usePermissionOptional } from "@/lib/tenant-context";
 import { AnimatePresence, motion } from "framer-motion";
-import { IconLogout as ArrowRightStartOnRectangleIcon, IconMenu2 as Bars2Icon, IconX as XMarkIcon, IconMail as EnvelopeIcon, IconBell as BellIcon, IconShieldCheck as ShieldCheckIcon, IconUserCircle as UserCircleIcon, IconSettings as CogIcon } from "@tabler/icons-react";
+import { IconLogout as ArrowRightStartOnRectangleIcon, IconMenu2 as Bars2Icon, IconX as XMarkIcon, IconMail as EnvelopeIcon, IconBell as BellIcon, IconSettings as CogIcon } from "@tabler/icons-react";
 
 import {
     OVERVIEW_ITEM,
@@ -32,7 +32,7 @@ function PageTitle({ companyName }: { companyName?: string | null }) {
         <h1 className={cn(pageHeadingClass, "leading-none")}>
             {title}
             {companyName && (
-                <span className="text-muted-foreground font-medium"> | {companyName}</span>
+                <span className="text-muted-foreground font-bold"> | {companyName}</span>
             )}
         </h1>
     );
@@ -40,22 +40,23 @@ function PageTitle({ companyName }: { companyName?: string | null }) {
 
 function SidebarNav({ items, pathname, onNavigate }: { items: NavItem[]; pathname: string; onNavigate?: () => void }) {
     const linkClass = (isActive: boolean) => cn(
-        "group flex items-center gap-4 px-3 py-3 rounded-lg font-display text-lg font-bold uppercase tracking-wide transition-all duration-200",
+        "group flex items-center gap-3 xl:gap-4 px-3 py-2 xl:py-3 rounded-lg font-display text-2xl md:text-base xl:text-xl font-bold uppercase transition-all duration-200",
         isActive ? "bg-white/10 text-white" : "text-white/50 hover:text-white hover:bg-white/[0.07]"
     );
 
     return (
-        <div className="space-y-1">
+        <div className="space-y-0.5 xl:space-y-1">
             <Link
                 href={OVERVIEW_ITEM.href}
                 onClick={onNavigate}
                 className={linkClass(pathname === OVERVIEW_ITEM.href || pathname.startsWith(OVERVIEW_ITEM.href + "/"))}
             >
-                <OVERVIEW_ITEM.icon className={cn("w-6 h-6 shrink-0 transition-transform duration-200", !(pathname === OVERVIEW_ITEM.href) && "group-hover:scale-110")} />
+                <OVERVIEW_ITEM.icon className={cn("w-5 h-5 xl:w-6 xl:h-6 shrink-0 transition-transform duration-200", !(pathname === OVERVIEW_ITEM.href) && "group-hover:scale-110")} />
                 {OVERVIEW_ITEM.label}
             </Link>
             {items.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                const matchTarget = item.matchPrefix ?? item.href;
+                const isActive = pathname === matchTarget || pathname.startsWith(matchTarget + "/") || pathname === item.href;
                 return (
                     <Link
                         key={item.href}
@@ -63,7 +64,7 @@ function SidebarNav({ items, pathname, onNavigate }: { items: NavItem[]; pathnam
                         onClick={onNavigate}
                         className={linkClass(isActive)}
                     >
-                        <item.icon className={cn("w-6 h-6 shrink-0 transition-transform duration-200", !isActive && "group-hover:scale-110")} />
+                        <item.icon className={cn("w-5 h-5 xl:w-6 xl:h-6 shrink-0 transition-transform duration-200", !isActive && "group-hover:scale-110")} />
                         {item.label}
                     </Link>
                 );
@@ -77,17 +78,6 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [notifOpen, setNotifOpen] = useState(false);
     const [signOutOpen, setSignOutOpen] = useState(false);
-    const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
-    const avatarMenuRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!avatarMenuOpen) return;
-        const handler = (e: MouseEvent) => {
-            if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target as Node)) setAvatarMenuOpen(false);
-        };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-    }, [avatarMenuOpen]);
 
     // Tenant context (optional — null when no TenantProvider wraps this component)
     const tenant = useTenantOptional();
@@ -104,52 +94,46 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
     const enabledModules = buildEnabledSet(modulesData?.modules ?? []);
     const modulesLoaded = !!modulesData;
 
-    const navItems = buildNavItems({
+    const baseNavItems = buildNavItems({
         enabledModules,
         modulesLoaded,
     });
+    const navItems: NavItem[] = hasSettingsAccess
+        ? [...baseNavItems, { href: ROUTES.SETTINGS_USERS, label: "Settings", icon: CogIcon, matchPrefix: "/dashboard/settings" }]
+        : baseNavItems;
 
     return (
         <div className="min-h-screen bg-black flex">
             {/* Desktop Sidebar */}
-            <aside className="w-[268px] bg-black hidden md:flex flex-col fixed inset-y-0 left-0 z-30">
-                <div className="h-20 px-5 flex items-center">
-                    <Link href="/dashboard/overview" className="flex items-center gap-3">
-                        <div className="rounded-lg overflow-hidden shrink-0 w-12 h-12 flex items-center justify-center">
+            <aside className="w-[280px] bg-black hidden md:flex flex-col fixed inset-y-0 left-0 z-30">
+                <div className="h-16 xl:h-20 px-5 flex items-center">
+                    <Link href="/dashboard/overview" className="flex items-center gap-3 min-w-0">
+                        <div className="rounded-lg overflow-hidden shrink-0 w-10 h-10 xl:w-12 xl:h-12 flex items-center justify-center">
                             <Logo size="default" tenantLogoUrl={tenant?.logo_url} tenantLogoDarkUrl={tenant?.logo_dark_url} />
                         </div>
-                        <span className="font-display text-lg font-bold uppercase tracking-wide text-white/80 truncate">{tenant?.company_name || tenant?.name || "Workspace"}</span>
+                        <div className="flex flex-col min-w-0 leading-tight">
+                            <span className="font-display text-xl xl:text-2xl font-extrabold uppercase tracking-wide text-white truncate">{tenant?.company_name || tenant?.name || "Workspace"}</span>
+                            <span className="text-[12px] xl:text-[13px] font-medium uppercase tracking-wider text-white/40">Powered by THOR</span>
+                        </div>
                     </Link>
                 </div>
-                <nav className="flex-1 px-3 overflow-y-auto pt-4 pb-4">
+                <nav className="flex-1 px-3 overflow-y-auto pt-3 xl:pt-4 pb-3 xl:pb-4">
                     <SidebarNav items={navItems} pathname={pathname} />
                 </nav>
-                {hasSettingsAccess && (
-                    <div className="px-3 pb-5 pt-2">
-                        <Link
-                            href={ROUTES.SETTINGS_USERS}
-                            className={cn(
-                                "group flex items-center gap-4 px-3 py-3 rounded-lg font-display text-lg font-bold uppercase tracking-wide transition-all duration-200",
-                                pathname.startsWith("/dashboard/settings")
-                                    ? "bg-white/10 text-white"
-                                    : "text-white/50 hover:text-white hover:bg-white/[0.07]"
-                            )}
-                        >
-                            <CogIcon className="w-6 h-6 shrink-0" />
-                            Settings
-                        </Link>
-                    </div>
-                )}
-                <div className="p-3 pb-5 border-t border-white/10">
-                    <Link href="/dashboard/settings/settings" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.07] transition-colors cursor-pointer">
-                        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                <div className="p-3 pb-4 xl:pb-5 border-t border-white/10 space-y-0.5">
+                    <Link href="/dashboard/settings/settings" className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/[0.07] transition-colors cursor-pointer">
+                        <div className="w-7 h-7 xl:w-8 xl:h-8 rounded-lg bg-secondary flex items-center justify-center">
                             <span className="text-xs font-bold text-foreground uppercase tracking-wide">{initials}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-base font-medium text-white truncate">{displayName}</p>
-                            <p className="text-[15px] text-white/40 truncate">{userEmail}</p>
+                            <p className="text-xs xl:text-base font-medium text-white truncate">{displayName}</p>
+                            <p className="text-[11px] xl:text-[15px] text-white/40 truncate">{userEmail}</p>
                         </div>
                     </Link>
+                    <button onClick={() => setSignOutOpen(true)} className="flex items-center gap-3 xl:gap-4 px-3 py-2 xl:py-3 rounded-lg font-display text-base xl:text-xl font-bold uppercase text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors w-full">
+                        <ArrowRightStartOnRectangleIcon className="w-5 h-5 xl:w-6 xl:h-6 shrink-0" />
+                        Sign out
+                    </button>
                 </div>
             </aside>
 
@@ -173,11 +157,14 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                             className="fixed inset-y-0 left-0 w-72 bg-black z-50 md:hidden flex flex-col shadow-2xl"
                         >
                             <div className="h-20 flex items-center justify-between px-5">
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
                                     <div className="rounded-lg overflow-hidden shrink-0 w-12 h-12 flex items-center justify-center">
                                         <Logo size="default" tenantLogoUrl={tenant?.logo_url} tenantLogoDarkUrl={tenant?.logo_dark_url} />
                                     </div>
-                                    <span className="font-display text-lg font-bold uppercase tracking-wide text-white/80 truncate">{tenant?.company_name || tenant?.name || "Workspace"}</span>
+                                    <div className="flex flex-col min-w-0 leading-tight">
+                                        <span className="font-display text-2xl font-extrabold uppercase tracking-wide text-white truncate">{tenant?.company_name || tenant?.name || "Workspace"}</span>
+                                        <span className="text-[13px] font-medium uppercase tracking-wider text-white/40">Powered by THOR</span>
+                                    </div>
                                 </div>
                                 <button onClick={() => setMobileMenuOpen(false)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/60">
                                     <XMarkIcon className="w-5 h-5" />
@@ -188,26 +175,9 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                                 <SidebarNav items={navItems} pathname={pathname} onNavigate={() => setMobileMenuOpen(false)} />
                             </nav>
 
-                            {hasSettingsAccess && (
-                                <div className="px-3 pb-2 border-t border-white/10 pt-2">
-                                    <Link
-                                        href={ROUTES.SETTINGS_USERS}
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        className={cn(
-                                            "group flex items-center gap-4 px-3 py-3 rounded-lg font-display text-lg font-bold uppercase tracking-wide transition-all duration-200",
-                                            pathname.startsWith("/dashboard/settings")
-                                                ? "bg-white/10 text-white"
-                                                : "text-white/50 hover:text-white hover:bg-white/[0.07]"
-                                        )}
-                                    >
-                                        <CogIcon className="w-6 h-6 shrink-0" />
-                                        Settings
-                                    </Link>
-                                </div>
-                            )}
                             <div className="p-3 border-t border-white/10 space-y-0.5">
                                 <Link href="/dashboard/settings/settings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.07] transition-colors cursor-pointer">
-                                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
                                         <span className="text-xs font-bold text-foreground uppercase tracking-wide">{initials}</span>
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -215,7 +185,7 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                                         <p className="text-[15px] text-white/40 truncate">{userEmail}</p>
                                     </div>
                                 </Link>
-                                <button onClick={() => { setMobileMenuOpen(false); setSignOutOpen(true); }} className="flex items-center gap-4 px-3 py-3 rounded-lg font-display text-lg font-bold uppercase tracking-wide text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors w-full">
+                                <button onClick={() => { setMobileMenuOpen(false); setSignOutOpen(true); }} className="flex items-center gap-4 px-3 py-3 rounded-lg font-display text-lg font-bold text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors w-full">
                                     <ArrowRightStartOnRectangleIcon className="w-6 h-6 shrink-0" />
                                     Sign out
                                 </button>
@@ -226,76 +196,46 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
             </AnimatePresence>
 
             {/* Main content */}
-            <main className="flex-1 min-w-0 overflow-hidden md:ml-[268px]">
+            <main className="flex-1 min-w-0 overflow-hidden md:ml-[280px]">
               <PageTitleProvider>
                 <div className="bg-background h-dvh overflow-hidden flex flex-col">
                     {/* Desktop header — inside the container */}
-                    <header className="hidden md:flex h-16 border-b border-border items-center px-6 lg:px-10 gap-4 shrink-0">
+                    <header className="hidden md:flex h-20 border-b border-border items-center px-6 lg:px-10 gap-4 shrink-0">
                         <PageTitle companyName={tenant?.company_name || tenant?.name} />
-                        <div className="flex items-center gap-1 ml-auto">
+                        <div className="flex items-center gap-2 ml-auto">
                             {showPlatformAdminLink && (
                                 <Link
                                     href="/platform-admin"
-                                    title="Platform Admin"
-                                    className="p-2 rounded-full text-indigo-500 hover:text-indigo-600 hover:bg-gray-100 transition-colors"
+                                    className="px-3 py-1.5 text-base font-medium bg-secondary text-foreground hover:bg-secondary/80 rounded-lg transition-colors"
                                 >
-                                    <ShieldCheckIcon className="w-6 h-6" />
+                                    Go to Admin
                                 </Link>
                             )}
                             <button
                                 title="Notifications"
                                 onClick={() => { setNotifOpen(true); refreshNotifs(); }}
-                                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-gray-100 transition-colors relative"
+                                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors relative"
                             >
-                                <BellIcon className="w-6 h-6" />
+                                <BellIcon className="w-[26px] h-[26px]" />
                                 {unreadCount > 0 && (
                                     <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-background" />
                                 )}
                             </button>
-                            <Link href={ROUTES.CRM_EMAILS} title="Emails" className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-gray-100 transition-colors">
-                                <EnvelopeIcon className="w-6 h-6" />
+                            <Link href={ROUTES.CRM_EMAILS} title="Emails" className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                                <EnvelopeIcon className="w-[26px] h-[26px]" />
                             </Link>
-                            <div ref={avatarMenuRef} className="relative">
-                                <button
-                                    onClick={() => setAvatarMenuOpen(!avatarMenuOpen)}
-                                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                                >
-                                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-                                        <span className="text-xs font-bold text-foreground uppercase tracking-wide">{initials}</span>
-                                    </div>
-                                </button>
-                                {avatarMenuOpen && (
-                                    <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl border border-border shadow-lg py-1 z-50">
-                                        <Link
-                                            href="/dashboard/settings/settings"
-                                            onClick={() => setAvatarMenuOpen(false)}
-                                            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-gray-50 transition-colors"
-                                        >
-                                            <UserCircleIcon className="w-4 h-4 text-muted-foreground" />
-                                            My Profile
-                                        </Link>
-                                        <button
-                                            onClick={() => { setAvatarMenuOpen(false); setSignOutOpen(true); }}
-                                            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-gray-50 transition-colors w-full"
-                                        >
-                                            <ArrowRightStartOnRectangleIcon className="w-4 h-4 text-muted-foreground" />
-                                            Log Out
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     </header>
 
                     {/* Mobile header */}
-                    <header className="md:hidden h-16 border-b border-border flex items-center px-4 sticky top-0 z-20 bg-background shrink-0">
+                    <header className="md:hidden h-20 border-b border-border flex items-center px-4 sticky top-0 z-20 bg-background shrink-0">
                         <div className="w-10">
                             <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg hover:bg-secondary transition-colors" aria-label="Open menu">
                                 <Bars2Icon className="w-5 h-5" />
                             </button>
                         </div>
                         <div className="flex-1 text-center">
-                            <PageTitle companyName={tenant?.company_name || tenant?.name} />
+                            <PageTitle />
                         </div>
                         <div className="w-10" />
                     </header>

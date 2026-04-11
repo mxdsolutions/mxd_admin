@@ -47,12 +47,6 @@ type Task = {
     assigned_user: { id: string; full_name: string } | null;
 };
 
-type RevenueDataPoint = {
-    month: string;
-    revenue: number;
-    jobs: number;
-};
-
 const priorityLabels: Record<number, string> = { 1: "Urgent", 2: "High", 3: "Normal", 4: "Low" };
 
 export default function OverviewPage() {
@@ -67,12 +61,16 @@ export default function OverviewPage() {
     const [taskDueFilter, setTaskDueFilter] = useState("All");
 
     const stats = statsData?.stats || null;
+    const newJobsCount = useMemo(() => {
+        const items = (jobsData?.items || []) as Array<Record<string, unknown>>;
+        return items.filter((j) => String(j.status || "").toLowerCase() === "new").length;
+    }, [jobsData]);
     const activeJobs: ActiveJob[] = useMemo(() => {
         const items = (jobsData?.items || []) as Array<Record<string, unknown>>;
         return items
             .filter((j) => {
                 const status = String(j.status || "").toLowerCase();
-                return status !== "completed" && status !== "cancelled";
+                return status === "active" || status === "new";
             })
             .map((j) => ({
                 id: String(j.id),
@@ -88,18 +86,12 @@ export default function OverviewPage() {
             }));
     }, [jobsData]);
     const myTasks: Task[] = useMemo(() => tasksData?.items || [], [tasksData]);
-    const revenueChart: RevenueDataPoint[] = stats?.revenueChart || [];
 
-    // Calculate this month's revenue from chart data
-    const thisMonthRevenue = revenueChart.length > 0
-        ? revenueChart[revenueChart.length - 1].revenue
-        : 0;
-
-    const statCards = [
-        { label: "Revenue This Month", value: formatCurrency(thisMonthRevenue), href: null },
-        { label: "Total Revenue", value: formatCurrency(stats?.totalRevenue || 0), href: null },
-        { label: "Total Jobs", value: stats?.totalJobs?.toLocaleString() || "0", href: "/dashboard/jobs" },
-    ];
+    const newJobsCard = { label: "New Jobs", value: newJobsCount.toLocaleString(), href: "/dashboard/jobs" };
+    const totalRevenueCard = { label: "Total Revenue", value: formatCurrency(stats?.totalRevenue || 0), href: null };
+    const activeJobsCard = { label: "Active Jobs", value: stats?.activeJobs?.toLocaleString() || "0", href: "/dashboard/jobs" };
+    const desktopStatCards = [newJobsCard, totalRevenueCard, activeJobsCard];
+    const mobileStatCards = [activeJobsCard, totalRevenueCard];
 
     const filteredJobs = useMemo(() => {
         const q = jobsSearch.trim().toLowerCase();
@@ -142,7 +134,7 @@ export default function OverviewPage() {
     const jobsTable = (
         <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-                <h2 className="text-2xl font-bold uppercase tracking-wide leading-none shrink-0">All Jobs</h2>
+                <h2 className="text-2xl font-bold uppercase tracking-wide leading-none shrink-0">Active Jobs</h2>
                 <div className="relative flex-1 max-w-xs">
                     <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -171,7 +163,7 @@ export default function OverviewPage() {
                             ) : filteredJobs.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="text-center py-12 text-sm text-muted-foreground">
-                                        {jobsSearch ? "No jobs match your search." : "No active jobs."}
+                                        {jobsSearch ? "No jobs match your search." : "No new or active jobs."}
                                     </td>
                                 </tr>
                             ) : (
@@ -220,7 +212,7 @@ export default function OverviewPage() {
                 <h2 className="text-2xl font-bold uppercase tracking-wide leading-none shrink-0">My Tasks</h2>
                 <div className="flex items-center gap-2">
                     <Select value={taskDueFilter} onValueChange={setTaskDueFilter}>
-                        <SelectTrigger className="w-[120px] h-9 text-xs">
+                        <SelectTrigger className="w-[130px]">
                             <SelectValue placeholder="Due" />
                         </SelectTrigger>
                         <SelectContent>
@@ -232,7 +224,7 @@ export default function OverviewPage() {
                         </SelectContent>
                     </Select>
                     <Select value={taskStatusFilter} onValueChange={setTaskStatusFilter}>
-                        <SelectTrigger className="w-[120px] h-9 text-xs">
+                        <SelectTrigger className="w-[140px]">
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -298,11 +290,25 @@ export default function OverviewPage() {
         <DashboardPage className="space-y-6">
             {/* Stat Cards */}
             {statsLoading ? (
-                <MetricsSkeleton count={3} />
+                <>
+                    <div className="md:hidden">
+                        <MetricsSkeleton count={2} />
+                    </div>
+                    <div className="hidden md:block">
+                        <MetricsSkeleton count={3} />
+                    </div>
+                </>
             ) : (
                 <motion.div variants={fadeInUp} className="px-4 md:px-6 lg:px-10">
-                    <div className="flex gap-3 overflow-x-auto pb-1 md:grid md:grid-cols-3 md:overflow-visible">
-                        {statCards.map((card, i) => (
+                    {/* Mobile: 2 cards stacked */}
+                    <div className="grid grid-cols-1 gap-3 md:hidden">
+                        {mobileStatCards.map((card, i) => (
+                            <StatCard key={i} label={card.label} value={card.value} href={card.href} />
+                        ))}
+                    </div>
+                    {/* Desktop: 3 cards */}
+                    <div className="hidden md:grid md:grid-cols-3 gap-3">
+                        {desktopStatCards.map((card, i) => (
                             <StatCard key={i} label={card.label} value={card.value} href={card.href} />
                         ))}
                     </div>
@@ -316,13 +322,13 @@ export default function OverviewPage() {
                     onChange={setMobileTab}
                     options={[
                         { value: "tasks", label: "My Tasks" },
-                        { value: "jobs", label: "All Jobs" },
+                        { value: "jobs", label: "Active Jobs" },
                     ]}
                 />
             </div>
 
             {/* Desktop: 65:35 split */}
-            <motion.div variants={fadeInUp} className="hidden lg:grid grid-cols-[65fr_35fr] gap-3 px-4 md:px-6 lg:px-10">
+            <motion.div variants={fadeInUp} className="hidden lg:grid grid-cols-[2fr_1fr] gap-3 px-4 md:px-6 lg:px-10">
                 {jobsTable}
                 {tasksTable}
             </motion.div>
