@@ -4,6 +4,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useTenant } from "@/lib/tenant-context";
 
+const inputClass = "w-full px-4 py-2.5 border border-border rounded-xl text-base bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+const hintClass = "text-sm text-muted-foreground mt-1.5";
+
 export default function DetailsPage() {
     const tenant = useTenant();
     const [companyName, setCompanyName] = useState(tenant.company_name || "");
@@ -47,12 +50,10 @@ export default function DetailsPage() {
                     type="text"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-border rounded-xl text-sm bg-background"
+                    className={inputClass}
                     placeholder="Your company name"
                 />
-                <p className="text-xs text-muted-foreground mt-1.5">
-                    Displayed in the browser tab and throughout the app
-                </p>
+                <p className={hintClass}>Displayed in the browser tab and throughout the app</p>
             </div>
 
             {/* Business Details */}
@@ -62,7 +63,7 @@ export default function DetailsPage() {
                     <textarea
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        className="w-full px-4 py-2.5 border border-border rounded-xl text-sm bg-background resize-none"
+                        className={inputClass + " resize-none"}
                         placeholder="123 Main St, City, State 1234"
                         rows={2}
                     />
@@ -74,7 +75,7 @@ export default function DetailsPage() {
                             type="tel"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
-                            className="w-full px-4 py-2.5 border border-border rounded-xl text-sm bg-background"
+                            className={inputClass}
                             placeholder="(02) 1234 5678"
                         />
                     </div>
@@ -84,7 +85,7 @@ export default function DetailsPage() {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-2.5 border border-border rounded-xl text-sm bg-background"
+                            className={inputClass}
                             placeholder="info@yourcompany.com"
                         />
                     </div>
@@ -98,12 +99,10 @@ export default function DetailsPage() {
                     type="text"
                     value={abn}
                     onChange={(e) => setAbn(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-border rounded-xl text-sm bg-background"
+                    className={inputClass}
                     placeholder="12 345 678 901"
                 />
-                <p className="text-xs text-muted-foreground mt-1.5">
-                    Australian Business Number — displayed on quotes and invoices
-                </p>
+                <p className={hintClass}>Australian Business Number — displayed on quotes and invoices</p>
             </div>
 
             {/* Job ID Prefix */}
@@ -113,12 +112,10 @@ export default function DetailsPage() {
                     type="text"
                     value={referencePrefix}
                     onChange={(e) => setReferencePrefix(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-border rounded-xl text-sm bg-background"
+                    className={inputClass}
                     placeholder="ACME"
                 />
-                <p className="text-xs text-muted-foreground mt-1.5">
-                    Applied to every new job, e.g. ACME-1001. Leave blank to skip auto-numbering.
-                </p>
+                <p className={hintClass}>Applied to every new job, e.g. ACME-1001. Leave blank to skip auto-numbering.</p>
             </div>
 
             {/* Save */}
@@ -126,7 +123,7 @@ export default function DetailsPage() {
                 <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="px-6 py-2.5 bg-primary text-primary-foreground font-medium text-sm rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+                    className="px-6 py-2.5 bg-foreground text-background font-medium text-sm rounded-lg hover:bg-foreground/90 transition-colors disabled:opacity-50"
                 >
                     {saving ? "Saving..." : "Save Changes"}
                 </button>

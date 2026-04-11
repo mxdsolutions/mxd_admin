@@ -318,14 +318,14 @@ function JobsPageContent() {
                                         </td>
                                         <td className={tableCellMuted + " px-4 truncate max-w-[180px]"}>
                                             {job.assignees.length === 0
-                                                ? <span className="text-xs text-muted-foreground">Unassigned</span>
-                                                : <span className="text-sm">{job.assignees.map(a => a.full_name || a.email || "—").join(", ")}</span>}
+                                                ? <span className="text-muted-foreground">Unassigned</span>
+                                                : <span>{job.assignees.map(a => a.full_name || a.email || "—").join(", ")}</span>}
                                         </td>
                                         <td className={tableCell + " px-4 text-right sm:text-left"}>
-                                            <span className="font-bold text-sm">${job.amount.toFixed(2)}</span>
+                                            <span className="font-bold">${job.amount.toFixed(2)}</span>
                                         </td>
                                         <td className={tableCell + " px-4 hidden sm:table-cell"}>
-                                            <span className={cn("text-xs font-medium", paidStatusTextClass[job.paid_status] || "text-muted-foreground")}>
+                                            <span className={cn("font-medium", paidStatusTextClass[job.paid_status] || "text-muted-foreground")}>
                                                 {paidStatusLabel[job.paid_status] || job.paid_status}
                                             </span>
                                         </td>
@@ -335,7 +335,7 @@ function JobsPageContent() {
                                                     "w-1.5 h-1.5 rounded-full",
                                                     jobStatusConfig[job.status]?.color || "bg-gray-400"
                                                 )} />
-                                                <span className="text-xs font-medium text-muted-foreground capitalize">
+                                                <span className="font-medium text-muted-foreground capitalize">
                                                     {jobStatusConfig[job.status]?.label || job.status.replace(/_/g, " ")}
                                                 </span>
                                             </div>

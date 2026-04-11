@@ -118,7 +118,7 @@ export default function ServicesPage() {
                                                 "w-1.5 h-1.5 rounded-full",
                                                 service.status === "active" ? "bg-emerald-500" : "bg-amber-500"
                                             )} />
-                                            <span className="text-xs font-medium text-muted-foreground capitalize">
+                                            <span className="font-medium text-muted-foreground capitalize">
                                                 {service.status}
                                             </span>
                                         </div>

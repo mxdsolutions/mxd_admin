@@ -555,7 +555,7 @@ export function TenantSideSheet({ tenantId, open, onOpenChange, onUpdate }: Tena
                                                     <tbody>
                                                         {data.members.map((member) => (
                                                             <tr key={member.user_id} className={tableRow}>
-                                                                <td className={tableCell + " pl-4 pr-4 font-medium text-sm"}>
+                                                                <td className={tableCell + " pl-4 pr-4 font-medium"}>
                                                                     {member.profiles?.full_name || "—"}
                                                                 </td>
                                                                 <td className={tableCellMuted + " px-4"}>

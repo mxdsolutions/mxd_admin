@@ -119,7 +119,7 @@ export default function DomainPage() {
                     <button
                         onClick={handleSave}
                         disabled={saving || !domain.trim()}
-                        className="px-4 py-2.5 bg-primary text-primary-foreground font-medium text-sm rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
+                        className="px-4 py-2.5 bg-foreground text-background font-medium text-sm rounded-lg hover:bg-foreground/90 transition-colors disabled:opacity-50 shrink-0"
                     >
                         {saving ? "Saving..." : currentDomain ? "Update" : "Add Domain"}
                     </button>

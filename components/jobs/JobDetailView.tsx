@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { getJobStatusDot, sheetTitleClass, avatarSurfaceClass } from "@/lib/design-system";
+import { getJobStatusDot, avatarSurfaceClass } from "@/lib/design-system";
 import { DetailFields } from "@/components/sheets/DetailFields";
 import { NotesPanel } from "@/components/sheets/NotesPanel";
 import { ActivityTimeline } from "@/components/sheets/ActivityTimeline";
@@ -83,6 +83,8 @@ export function JobDetailView({ job, mode, onUpdate, onClose }: JobDetailViewPro
     const [quoteModalOpen, setQuoteModalOpen] = useState(false);
     const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
     const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [editingDescription, setEditingDescription] = useState(false);
+    const [descriptionDraft, setDescriptionDraft] = useState("");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [selectedQuote, setSelectedQuote] = useState<any>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -214,8 +216,6 @@ export function JobDetailView({ job, mode, onUpdate, onClose }: JobDetailViewPro
         { id: "activity", label: "Activity" },
     ];
 
-    const subtitle = `$${data.amount.toLocaleString()}${data.scheduled_date ? ` · ${new Date(data.scheduled_date).toLocaleDateString("en-AU", { dateStyle: "medium" })}` : ""}`;
-
     return (
         <div className="flex flex-col h-full min-h-0 bg-background">
             {/* Back link (inline mode only) */}
@@ -236,21 +236,50 @@ export function JobDetailView({ job, mode, onUpdate, onClose }: JobDetailViewPro
             <div className={cn("px-6 pb-4 border-b border-border shrink-0", mode === "inline" ? "pt-3" : "pt-6")}>
                 <div className="flex items-start gap-4">
                     <div className={cn("w-[60px] h-[60px] rounded-xl flex items-center justify-center shrink-0", avatarSurfaceClass)}>
-                        <span className="text-lg font-bold uppercase tracking-wide">J</span>
+                        <span className="text-lg font-bold uppercase tracking-wide">{(data.job_title || "?").charAt(0).toUpperCase()}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                            <h1 className={sheetTitleClass}>{data.job_title}</h1>
-                            {data.reference_id && (
-                                <span className="text-xs font-mono text-muted-foreground">{data.reference_id}</span>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-[2px]">
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-3xl font-bold leading-tight truncate">{data.job_title}</h1>
                             <span className="inline-flex items-center shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider bg-secondary text-foreground">
                                 <span className={cn("w-2 h-2 rounded-full mr-2", status.color)} />
                                 {status.label}
                             </span>
-                            <span className="text-sm text-muted-foreground">· {subtitle}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                            {data.reference_id && (
+                                <>
+                                    <span className="font-mono">{data.reference_id}</span>
+                                    <span>·</span>
+                                </>
+                            )}
+                            <span>${data.amount.toLocaleString()}</span>
+                            {data.scheduled_date && (
+                                <>
+                                    <span>·</span>
+                                    <span>{new Date(data.scheduled_date).toLocaleDateString("en-AU", { dateStyle: "medium" })}</span>
+                                </>
+                            )}
+                            {(data.assignees || []).length > 0 && (
+                                <>
+                                    <span>·</span>
+                                    <div className="flex -space-x-1.5 items-center">
+                                        {(data.assignees || []).map((a, idx) => {
+                                            const name = a.full_name || a.email || "Unknown";
+                                            const initials = (a.full_name || a.email || "?").split(/[\s@]/).filter(Boolean).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                                            return (
+                                                <div
+                                                    key={a.id ?? idx}
+                                                    title={name}
+                                                    className="w-6 h-6 rounded-full bg-secondary border-2 border-background flex items-center justify-center text-[10px] font-bold text-foreground"
+                                                >
+                                                    {initials}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                     {mode === "sheet" && onClose && (
@@ -294,13 +323,50 @@ export function JobDetailView({ job, mode, onUpdate, onClose }: JobDetailViewPro
             <div className="flex-1 overflow-y-auto p-6 min-w-0">
                 {activeTab === "details" && (
                     <div className="space-y-4">
+                        {/* Stage progress bar — chevron/arrow shape */}
+                        {(() => {
+                            const stageOrder = Object.keys(statusConfig).filter(k => k !== "cancelled");
+                            if (stageOrder.length === 0) return null;
+                            const currentIdx = stageOrder.indexOf(data.status);
+                            return (
+                                <div className="flex items-stretch w-full">
+                                    {stageOrder.map((key, idx) => {
+                                        const cfg = statusConfig[key];
+                                        const isReached = currentIdx > -1 && idx <= currentIdx;
+                                        const isFirst = idx === 0;
+                                        const isLast = idx === stageOrder.length - 1;
+                                        const clipPath = isFirst
+                                            ? "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)"
+                                            : isLast
+                                                ? "polygon(0 0, 100% 0, 100% 100%, 0 100%, 14px 50%)"
+                                                : "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%)";
+                                        return (
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                onClick={() => handleSave("status", key)}
+                                                style={{ clipPath, marginLeft: isFirst ? 0 : -12 }}
+                                                className={cn(
+                                                    "flex-1 h-11 flex items-center justify-center px-5 text-[11px] font-bold uppercase tracking-wider transition-colors",
+                                                    isReached
+                                                        ? "bg-foreground text-background hover:bg-foreground/90"
+                                                        : "bg-muted/70 text-muted-foreground hover:bg-muted"
+                                                )}
+                                            >
+                                                {cfg.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
+
                         <div className="rounded-xl border border-border bg-card p-5">
                             <DetailFields
                                 onSave={handleSave}
                                 fields={[
                                     { label: "Job ID", value: data.reference_id, dbColumn: "reference_id", type: "text", rawValue: data.reference_id },
                                     { label: "Job Name", value: data.job_title, dbColumn: "job_title", type: "text", rawValue: data.job_title },
-                                    { label: "Description", value: data.description, dbColumn: "description", type: "text", rawValue: data.description },
                                     { label: "Type", value: data.service?.name, dbColumn: "service_id", type: "select", rawValue: data.service?.id ?? null, options: services.map((s) => ({ value: s.id, label: s.name })) },
                                     { label: "Customer", value: data.contact ? `${data.contact.first_name} ${data.contact.last_name}` : null, dbColumn: "contact_id", type: "select", rawValue: data.contact?.id ?? null, options: contacts.map((c) => ({ value: c.id, label: `${c.first_name} ${c.last_name}` })) },
                                     { label: "Company", value: data.company?.name, dbColumn: "company_id", type: "select", rawValue: data.company?.id ?? null, options: companies },
@@ -312,6 +378,45 @@ export function JobDetailView({ job, mode, onUpdate, onClose }: JobDetailViewPro
                                     { label: "Created", value: new Date(data.created_at).toLocaleDateString("en-AU", { dateStyle: "medium" }) },
                                 ]}
                             />
+                        </div>
+
+                        {/* Description — its own card below main details */}
+                        <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</p>
+                            {editingDescription ? (
+                                <textarea
+                                    autoFocus
+                                    value={descriptionDraft}
+                                    onChange={(e) => setDescriptionDraft(e.target.value)}
+                                    onBlur={async () => {
+                                        setEditingDescription(false);
+                                        const trimmed = descriptionDraft.trim();
+                                        const newVal = trimmed === "" ? null : trimmed;
+                                        if (newVal !== (data.description ?? null)) {
+                                            await handleSave("description", newVal);
+                                        }
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Escape") {
+                                            setEditingDescription(false);
+                                            setDescriptionDraft(data.description ?? "");
+                                        }
+                                    }}
+                                    rows={4}
+                                    className="w-full text-[15px] text-foreground bg-muted/40 border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 focus:ring-offset-background resize-none"
+                                />
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setDescriptionDraft(data.description ?? "");
+                                        setEditingDescription(true);
+                                    }}
+                                    className="w-full text-left text-[15px] text-foreground whitespace-pre-wrap rounded-md px-2 py-1 -mx-2 hover:bg-muted/50 transition-colors cursor-text"
+                                >
+                                    {data.description || <span className="text-muted-foreground/40 italic text-sm">Click to add a description</span>}
+                                </button>
+                            )}
                         </div>
 
                         {/* Assignees */}

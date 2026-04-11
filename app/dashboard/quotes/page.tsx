@@ -115,11 +115,11 @@ export default function QuotesPage() {
                                 <td className={tableCell + " px-4"}>
                                     <div className="flex items-center gap-2">
                                         <div className={cn("w-1.5 h-1.5 rounded-full", quoteStatusDotClass[quote.status] || "bg-gray-400")} />
-                                        <span className="text-xs font-medium text-muted-foreground capitalize">{quote.status}</span>
+                                        <span className="font-medium text-muted-foreground capitalize">{quote.status}</span>
                                     </div>
                                 </td>
                                 <td className={tableCell + " px-4 text-right"}>
-                                    <span className="font-bold text-sm">{formatCurrency(quote.total_amount)}</span>
+                                    <span className="font-bold">{formatCurrency(quote.total_amount)}</span>
                                 </td>
                                 <td className={tableCellMuted + " px-4 hidden sm:table-cell"}>
                                     {quote.valid_until || "—"}

@@ -11,7 +11,7 @@
 /** Page title — used in DashboardControls / sticky header context.
  *  Renders in Antonio via the base `h1`–`h6` rule in globals.css, so
  *  this class string should be applied to semantic heading elements. */
-export const pageHeadingClass = "text-3xl font-bold uppercase tracking-wide";
+export const pageHeadingClass = "text-3xl font-bold uppercase";
 
 /** Section heading inside a page (card titles, tab subtitles) */
 export const sectionHeadingClass = "text-xl font-bold uppercase tracking-wide text-foreground";
@@ -80,7 +80,7 @@ export const cardGap = "gap-3";
 
 /* ── Table Styles ── */
 
-export const tableBase = "w-full text-[15px] text-left";
+export const tableBase = "w-full text-base text-left";
 
 export const tableHead = "bg-secondary";
 

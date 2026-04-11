@@ -77,7 +77,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     return (
         <div className="px-6 lg:px-10">
             <div className="mb-6">
-                <h1 className="text-xl font-bold tracking-tight">{activeTopTab.label}</h1>
+                <h1 className="text-2xl font-bold tracking-tight">{activeTopTab.label}</h1>
             </div>
 
             {/* Top-level tabs */}
@@ -91,7 +91,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                                 key={tab.id}
                                 href={firstSubTab.href}
                                 className={cn(
-                                    "pb-3 text-sm font-medium transition-colors relative",
+                                    "pb-3 text-base font-medium transition-colors relative",
                                     isActive
                                         ? "text-foreground"
                                         : "text-muted-foreground hover:text-foreground"
@@ -120,7 +120,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                                 key={subTab.href}
                                 href={subTab.href}
                                 className={cn(
-                                    "block px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                                    "block px-3 py-2 rounded-lg text-base font-medium transition-colors",
                                     isActive
                                         ? "bg-secondary text-foreground"
                                         : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"

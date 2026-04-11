@@ -177,7 +177,7 @@ export default function BrandingPage() {
                 <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="px-6 py-2.5 bg-primary text-primary-foreground font-medium text-sm rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+                    className="px-6 py-2.5 bg-foreground text-background font-medium text-sm rounded-lg hover:bg-foreground/90 transition-colors disabled:opacity-50"
                 >
                     {saving ? "Saving..." : "Save Changes"}
                 </button>

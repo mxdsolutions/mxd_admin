@@ -210,7 +210,10 @@
       "Bash(node -e ':*)",
       "Bash(curl -s -o /dev/null -w 'latin: %{http_code} size=%{size_download}\\\\n' http://127.0.0.1:8005/_next/static/media/26d4368bf94c0ec4-s.p.woff2)",
       "Bash(curl -s -o /dev/null -w 'latin-ext: %{http_code} size=%{size_download}\\\\n' http://127.0.0.1:8005/_next/static/media/2801417b65625cf5-s.woff2)",
-      "Bash(curl -sI 'http://127.0.0.1:8005/_next/static/css/app/layout.css?v=1775860452482')"
+      "Bash(curl -sI 'http://127.0.0.1:8005/_next/static/css/app/layout.css?v=1775860452482')",
+      "Bash(kill 43010 70041)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(find app/api/pricing app/dashboard/pricing components/modals/CreateQuoteModal* -name \"*.test.*\")"
     ]
   }
 }

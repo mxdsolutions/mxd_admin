@@ -111,7 +111,7 @@ export default function ScopesPage() {
                                                 style={{ width: `${scope.progress}%` }}
                                             />
                                         </div>
-                                        <span className="font-bold text-sm min-w-[2.5rem]">{scope.progress}%</span>
+                                        <span className="font-bold min-w-[2.5rem]">{scope.progress}%</span>
                                     </div>
                                 </td>
                                 <td className={tableCell + " px-4 hidden sm:table-cell"}>
@@ -121,7 +121,7 @@ export default function ScopesPage() {
                                             scope.status === "completed" ? "bg-emerald-500" :
                                             scope.status === "in_progress" ? "bg-blue-500" : "bg-amber-500"
                                         )} />
-                                        <span className="text-xs font-medium text-muted-foreground capitalize">
+                                        <span className="font-medium text-muted-foreground capitalize">
                                             {scope.status.replace(/_/g, " ")}
                                         </span>
                                     </div>

@@ -148,7 +148,7 @@ export default function RolesPage() {
                             <button
                                 onClick={handleSave}
                                 disabled={saving}
-                                className="px-4 py-2 bg-primary text-primary-foreground font-medium text-sm rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+                                className="px-4 py-2 bg-foreground text-background font-medium text-sm rounded-lg hover:bg-foreground/90 transition-colors disabled:opacity-50"
                             >
                                 {saving ? "Saving..." : "Save Permissions"}
                             </button>

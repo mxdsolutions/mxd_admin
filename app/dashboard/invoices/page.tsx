@@ -123,14 +123,14 @@ export default function InvoicesPage() {
                                     <td className={tableCell + " px-4"}>
                                         <div className="flex items-center gap-2">
                                             <div className={cn("w-1.5 h-1.5 rounded-full", invoiceStatusDotClass[inv.status] || "bg-gray-400")} />
-                                            <span className="text-xs font-medium text-muted-foreground capitalize">{inv.status}</span>
+                                            <span className="font-medium text-muted-foreground capitalize">{inv.status}</span>
                                         </div>
                                     </td>
                                     <td className={tableCell + " px-4 text-right"}>
-                                        <span className="font-bold text-sm">{formatCurrency(inv.total)}</span>
+                                        <span className="font-bold">{formatCurrency(inv.total)}</span>
                                     </td>
                                     <td className={tableCell + " px-4 text-right hidden sm:table-cell"}>
-                                        <span className="text-sm text-muted-foreground">{formatCurrency(inv.amount_due)}</span>
+                                        <span className="text-muted-foreground">{formatCurrency(inv.amount_due)}</span>
                                     </td>
                                     <td className={tableCellMuted + " px-4 hidden md:table-cell"}>
                                         {inv.due_date || "—"}

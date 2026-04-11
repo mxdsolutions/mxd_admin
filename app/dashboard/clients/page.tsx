@@ -187,7 +187,7 @@ function ClientsPageContent() {
                                 {contact.email || "—"}
                             </td>
                             <td className={tableCell + " px-4"}>
-                                <span className="text-sm truncate">{contact.company?.name || "—"}</span>
+                                <span className="truncate">{contact.company?.name || "—"}</span>
                             </td>
                             <td className={tableCellMuted + " px-4 hidden sm:table-cell"}>
                                 {contact.job_title || "—"}
@@ -198,7 +198,7 @@ function ClientsPageContent() {
                                         "w-1.5 h-1.5 rounded-full",
                                         contact.status === "active" ? "bg-emerald-500" : "bg-amber-500"
                                     )} />
-                                    <span className="text-xs font-medium text-muted-foreground capitalize">
+                                    <span className="font-medium text-muted-foreground capitalize">
                                         {contact.status}
                                     </span>
                                 </div>
@@ -263,7 +263,7 @@ function ClientsPageContent() {
                                         "w-1.5 h-1.5 rounded-full",
                                         company.status === "active" ? "bg-emerald-500" : "bg-amber-500"
                                     )} />
-                                    <span className="text-xs font-medium text-muted-foreground capitalize">
+                                    <span className="font-medium text-muted-foreground capitalize">
                                         {company.status}
                                     </span>
                                 </div>

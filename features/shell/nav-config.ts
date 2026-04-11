@@ -17,6 +17,8 @@ export type NavItem = {
     label: string;
     icon: Icon;
     moduleId?: string;
+    /** When set, active state matches on this prefix instead of `href`. */
+    matchPrefix?: string;
 };
 
 export const OVERVIEW_ITEM: NavItem = {

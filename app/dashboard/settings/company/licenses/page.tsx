@@ -105,7 +105,7 @@ export default function LicensesPage() {
                 <div className="flex justify-end">
                     <button
                         onClick={() => { resetForm(); setShowForm(true); }}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-full hover:opacity-90 transition-opacity"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-foreground text-background rounded-lg hover:bg-foreground/90 transition-colors"
                     >
                         <PlusIcon className="w-4 h-4" />
                         Add License
@@ -176,13 +176,13 @@ export default function LicensesPage() {
                         <button
                             onClick={handleSubmit}
                             disabled={saving}
-                            className="px-5 py-2 bg-primary text-primary-foreground font-medium text-sm rounded-full hover:opacity-90 transition-opacity disabled:opacity-50"
+                            className="px-5 py-2 bg-foreground text-background font-medium text-sm rounded-lg hover:bg-foreground/90 transition-colors disabled:opacity-50"
                         >
                             {saving ? "Saving..." : editingId ? "Update" : "Add License"}
                         </button>
                         <button
                             onClick={resetForm}
-                            className="px-5 py-2 text-sm font-medium border border-border rounded-full hover:bg-muted/50 transition-colors"
+                            className="px-5 py-2 text-sm font-medium border border-border rounded-lg hover:bg-muted/50 transition-colors"
                         >
                             Cancel
                         </button>

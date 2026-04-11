@@ -8,6 +8,11 @@ import { toast } from "sonner";
 import { IconTrash as TrashIcon, IconSearch as MagnifyingGlassIcon, IconPlus as PlusIcon } from "@tabler/icons-react";
 import { InlineNumberInput } from "@/features/line-items/InlineNumberInput";
 import { formatCurrency } from "@/lib/utils";
+import {
+    useContactOptions,
+    useServiceOptions,
+    type PricingItem,
+} from "@/lib/swr";
 
 const CreateContactModal = lazy(() =>
     import("./CreateContactModal").then(mod => ({ default: mod.CreateContactModal }))
@@ -21,17 +26,6 @@ interface CreateQuoteModalProps {
 }
 
 type ContactOption = { id: string; first_name: string; last_name: string; email: string | null; company_id: string | null; company?: { id: string; name: string } | null };
-
-type PricingItem = {
-    Matrix_ID: string;
-    Item: string;
-    Trade: string | null;
-    Category: string | null;
-    UOM: string | null;
-    Total_Rate: string | null;
-    Material_Cost: string | null;
-    Labour_Cost: string | null;
-};
 
 type ServiceItem = {
     id: string;
@@ -73,8 +67,12 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
     const [labourMargin, setLabourMargin] = useState(20);
     const [gstInclusive, setGstInclusive] = useState(true);
 
-    // Contact
-    const [contacts, setContacts] = useState<ContactOption[]>([]);
+    // Contact — list comes from SWR, only fetched while the modal is open
+    const { data: contactsData, mutate: mutateContacts } = useContactOptions(open);
+    const contacts: ContactOption[] = useMemo(
+        () => contactsData?.items ?? [],
+        [contactsData],
+    );
     const [contactId, setContactId] = useState("");
     const [contactSearch, setContactSearch] = useState("");
     const [showContactDropdown, setShowContactDropdown] = useState(false);
@@ -83,8 +81,12 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
     // Company (auto-filled from contact)
     const [companyId, setCompanyId] = useState("");
 
-    // Services (preloaded — small dataset)
-    const [services, setServices] = useState<ServiceItem[]>([]);
+    // Services (preloaded — small dataset, only fetched while the modal is open)
+    const { data: servicesData } = useServiceOptions(open);
+    const services: ServiceItem[] = useMemo(
+        () => servicesData?.items ?? [],
+        [servicesData],
+    );
 
     // Pricing search (API-backed — large dataset)
     const [pricingSearch, setPricingSearch] = useState("");
@@ -92,56 +94,55 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
     const [showPricingDropdown, setShowPricingDropdown] = useState(false);
     const [pricingLoading, setPricingLoading] = useState(false);
     const pricingDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Bumped on every new search request; lets us discard stale responses that
+    // resolve out-of-order (e.g. "ti" landing after "tile").
+    const pricingRequestIdRef = useRef(0);
 
     // Line items
     const [lineItems, setLineItems] = useState<QuoteLineItem[]>([]);
 
-    const refreshContacts = useCallback(() => {
-        fetch("/api/contacts?limit=200")
-            .then(r => r.json())
-            .then(d => setContacts(d.items || []))
-            .catch(() => {});
-    }, []);
-
-    // Load contacts + companies on open, then apply defaults
+    // Apply default contact / company once when the modal opens.
     useEffect(() => {
-        if (open) {
-            fetch("/api/contacts?limit=200")
-                .then(r => r.json())
-                .then(d => {
-                    setContacts(d.items || []);
-                    if (defaultValues?.contactId) setContactId(defaultValues.contactId);
-                })
-                .catch(() => {});
-            if (defaultValues?.companyId) setCompanyId(defaultValues.companyId);
-            fetch("/api/services?limit=200")
-                .then(r => r.json())
-                .then(d => setServices(d.items || []))
-                .catch(() => {});
-        }
+        if (!open) return;
+        if (defaultValues?.contactId) setContactId(defaultValues.contactId);
+        if (defaultValues?.companyId) setCompanyId(defaultValues.companyId);
         // Intentionally only react to open/close. `defaultValues` is consumed
         // once at open time; treating it as a dep would re-apply defaults on
         // every parent render.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
+    // Cancel any pending pricing-search debounce when the modal unmounts.
+    useEffect(() => () => {
+        if (pricingDebounceRef.current) clearTimeout(pricingDebounceRef.current);
+    }, []);
+
     // Debounced pricing search (150ms — trigram index makes DB queries fast)
+    // Min 3 chars: pg_trgm needs full trigrams (3 chars) to use the GIN indexes;
+    // shorter inputs fall back to a seq scan over the whole pricing table.
     const searchPricing = useCallback((query: string) => {
         if (pricingDebounceRef.current) clearTimeout(pricingDebounceRef.current);
-        if (query.length < 2) {
+        if (query.length < 3) {
             setPricingResults([]);
+            setPricingLoading(false);
             return;
         }
         setPricingLoading(true);
+        const requestId = ++pricingRequestIdRef.current;
         pricingDebounceRef.current = setTimeout(async () => {
             try {
                 const res = await fetch(`/api/pricing?search=${encodeURIComponent(query)}&limit=20`);
                 const data = await res.json();
+                // Discard if a newer search has been kicked off in the meantime.
+                if (requestId !== pricingRequestIdRef.current) return;
                 setPricingResults(data.items || []);
             } catch {
+                if (requestId !== pricingRequestIdRef.current) return;
                 setPricingResults([]);
             } finally {
-                setPricingLoading(false);
+                if (requestId === pricingRequestIdRef.current) {
+                    setPricingLoading(false);
+                }
             }
         }, 150);
     }, []);
@@ -187,11 +188,15 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
         setContactSearch("");
         setCompanyId("");
         setPricingSearch("");
+        setPricingResults([]);
+        setPricingLoading(false);
+        // Invalidate any in-flight search so a late response can't repopulate.
+        pricingRequestIdRef.current++;
         setLineItems([]);
     };
 
     const filteredServices = useMemo(() => {
-        if (pricingSearch.length < 2) return [];
+        if (pricingSearch.length < 3) return [];
         const q = pricingSearch.toLowerCase();
         return services.filter(s => s.name.toLowerCase().includes(q));
     }, [pricingSearch, services]);
@@ -279,192 +284,197 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
     return (
         <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
+            <DialogContent className="sm:max-w-[900px] h-[90vh] flex flex-col overflow-hidden">
                 <DialogHeader>
                     <DialogTitle>New Quote</DialogTitle>
                     <DialogDescription>Build a quote from the pricing matrix.</DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-5 overflow-y-auto px-1 flex-1">
-                    {/* Header fields: Contact, Valid Until */}
-                    <div className="grid grid-cols-2 gap-3">
-                        {/* Contact selector with search + create */}
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-muted-foreground">Contact</label>
-                            <div className="relative">
-                                <Input
-                                    placeholder="Search or create contact..."
-                                    value={selectedContact ? `${selectedContact.first_name} ${selectedContact.last_name}` : contactSearch}
-                                    onChange={(e) => {
-                                        setContactSearch(e.target.value);
-                                        setContactId("");
-                                        setShowContactDropdown(true);
-                                    }}
-                                    onFocus={() => setShowContactDropdown(true)}
-                                    onBlur={() => setTimeout(() => setShowContactDropdown(false), 200)}
-                                    className="rounded-xl"
-                                />
-                                {showContactDropdown && !selectedContact && (
-                                    <div className="absolute z-50 top-full mt-1 w-full bg-background border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                                        {filteredContacts.length === 0 && !contactSearch && (
-                                            <div className="px-3 py-2 text-sm text-muted-foreground">Type to search contacts</div>
-                                        )}
-                                        {filteredContacts.length === 0 && contactSearch && (
-                                            <div className="px-3 py-2 text-sm text-muted-foreground">No contacts found</div>
-                                        )}
-                                        {filteredContacts.map(c => (
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                    {/* Non-scrollable top section — dropdowns must NOT be inside overflow-y-auto */}
+                    <div className="px-1 space-y-4 pb-4">
+                        {/* Header fields: Contact, Valid Until */}
+                        <div className="grid grid-cols-2 gap-3">
+                            {/* Contact selector with search + create */}
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-muted-foreground">Contact</label>
+                                <div className="relative">
+                                    <Input
+                                        placeholder="Search or create contact..."
+                                        value={selectedContact ? `${selectedContact.first_name} ${selectedContact.last_name}` : contactSearch}
+                                        onChange={(e) => {
+                                            setContactSearch(e.target.value);
+                                            setContactId("");
+                                            setShowContactDropdown(true);
+                                        }}
+                                        onFocus={() => setShowContactDropdown(true)}
+                                        onBlur={() => setTimeout(() => setShowContactDropdown(false), 200)}
+                                        className="rounded-xl"
+                                    />
+                                    {showContactDropdown && !selectedContact && (
+                                        <div className="absolute z-50 top-full mt-1 w-full bg-background border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                            {filteredContacts.length === 0 && !contactSearch && (
+                                                <div className="px-3 py-2 text-sm text-muted-foreground">Type to search contacts</div>
+                                            )}
+                                            {filteredContacts.length === 0 && contactSearch && (
+                                                <div className="px-3 py-2 text-sm text-muted-foreground">No contacts found</div>
+                                            )}
+                                            {filteredContacts.map(c => (
+                                                <button
+                                                    key={c.id}
+                                                    type="button"
+                                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors first:rounded-t-xl"
+                                                    onClick={() => {
+                                                        setContactId(c.id);
+                                                        setContactSearch("");
+                                                        setShowContactDropdown(false);
+                                                        if (c.company_id) setCompanyId(c.company_id);
+                                                    }}
+                                                >
+                                                    <span className="font-medium">{c.first_name} {c.last_name}</span>
+                                                    {c.email && <span className="text-muted-foreground ml-2 text-xs">{c.email}</span>}
+                                                </button>
+                                            ))}
                                             <button
-                                                key={c.id}
                                                 type="button"
-                                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors first:rounded-t-xl"
+                                                className="w-full text-left px-3 py-2 text-sm text-primary font-medium hover:bg-muted transition-colors flex items-center gap-1.5 border-t border-border rounded-b-xl"
                                                 onClick={() => {
-                                                    setContactId(c.id);
-                                                    setContactSearch("");
                                                     setShowContactDropdown(false);
-                                                    if (c.company_id) setCompanyId(c.company_id);
+                                                    setShowCreateContact(true);
                                                 }}
                                             >
-                                                <span className="font-medium">{c.first_name} {c.last_name}</span>
-                                                {c.email && <span className="text-muted-foreground ml-2 text-xs">{c.email}</span>}
+                                                <PlusIcon className="w-3.5 h-3.5" />
+                                                Create new contact{contactSearch ? `: "${contactSearch}"` : ""}
                                             </button>
-                                        ))}
+                                        </div>
+                                    )}
+                                    {selectedContact && (
                                         <button
                                             type="button"
-                                            className="w-full text-left px-3 py-2 text-sm text-primary font-medium hover:bg-muted transition-colors flex items-center gap-1.5 border-t border-border rounded-b-xl"
-                                            onClick={() => {
-                                                setShowContactDropdown(false);
-                                                setShowCreateContact(true);
-                                            }}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+                                            onClick={() => { setContactId(""); setContactSearch(""); setCompanyId(""); }}
                                         >
-                                            <PlusIcon className="w-3.5 h-3.5" />
-                                            Create new contact{contactSearch ? `: "${contactSearch}"` : ""}
+                                            Clear
                                         </button>
-                                    </div>
-                                )}
-                                {selectedContact && (
-                                    <button
-                                        type="button"
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
-                                        onClick={() => { setContactId(""); setContactSearch(""); setCompanyId(""); }}
-                                    >
-                                        Clear
-                                    </button>
-                                )}
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-muted-foreground">Valid Until</label>
+                                <Input
+                                    type="date"
+                                    value={validUntil}
+                                    onChange={(e) => setValidUntil(e.target.value)}
+                                    className="rounded-xl"
+                                />
                             </div>
                         </div>
 
+                        {/* Pricing search */}
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-muted-foreground">Valid Until</label>
-                            <Input
-                                type="date"
-                                value={validUntil}
-                                onChange={(e) => setValidUntil(e.target.value)}
-                                className="rounded-xl"
-                            />
+                            <label className="text-sm font-medium text-muted-foreground">Add Line Items</label>
+                            <div className="relative">
+                                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search materials or services..."
+                                    value={pricingSearch}
+                                    onChange={(e) => {
+                                        setPricingSearch(e.target.value);
+                                        searchPricing(e.target.value);
+                                        setShowPricingDropdown(e.target.value.length >= 3);
+                                    }}
+                                    onFocus={() => { if (pricingSearch.length >= 3) setShowPricingDropdown(true); }}
+                                    onBlur={() => setTimeout(() => setShowPricingDropdown(false), 200)}
+                                    className="rounded-xl pl-9"
+                                />
+                                {showPricingDropdown && (
+                                    <div className="absolute z-50 top-full mt-1 w-full bg-background border border-border rounded-xl shadow-lg max-h-72 overflow-y-auto">
+                                        {pricingLoading && filteredServices.length === 0 && (
+                                            <div className="px-3 py-2 text-sm text-muted-foreground">Searching...</div>
+                                        )}
+
+                                        {/* Services section */}
+                                        {filteredServices.length > 0 && (
+                                            <>
+                                                <div className="px-3 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/40 border-b border-border/50">
+                                                    Services
+                                                </div>
+                                                {filteredServices.map(svc => (
+                                                    <button
+                                                        key={svc.id}
+                                                        type="button"
+                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                                                        onClick={() => addServiceItem(svc)}
+                                                    >
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="font-medium truncate">{svc.name}</span>
+                                                            {svc.initial_value != null && (
+                                                                <span className="text-xs text-muted-foreground shrink-0">{formatCurrency(svc.initial_value)}</span>
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </>
+                                        )}
+
+                                        {/* Materials section */}
+                                        {pricingResults.length > 0 && (
+                                            <>
+                                                <div className="px-3 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/40 border-b border-border/50">
+                                                    Materials
+                                                </div>
+                                                {pricingResults.map((item) => (
+                                                    <button
+                                                        key={item.Matrix_ID}
+                                                        type="button"
+                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                                                        onClick={() => addPricingItem(item)}
+                                                    >
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div className="flex-1 min-w-0">
+                                                                <span className="font-medium truncate block">{item.Item}</span>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {item.Trade}{item.Category ? ` / ${item.Category}` : ""}{item.UOM ? ` (${item.UOM})` : ""}
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground text-right shrink-0">
+                                                                <div>Mat: {formatCurrency(parseNum(item.Material_Cost))}</div>
+                                                                <div>Lab: {formatCurrency(parseNum(item.Labour_Cost))}</div>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </>
+                                        )}
+
+                                        {!pricingLoading && pricingResults.length === 0 && filteredServices.length === 0 && pricingSearch.length >= 3 && (
+                                            <div className="px-3 py-2 text-sm text-muted-foreground">No items found</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Pricing search */}
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-muted-foreground">Add Line Items</label>
-                        <div className="relative">
-                            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search materials or services..."
-                                value={pricingSearch}
-                                onChange={(e) => {
-                                    setPricingSearch(e.target.value);
-                                    searchPricing(e.target.value);
-                                    setShowPricingDropdown(e.target.value.length >= 2);
-                                }}
-                                onFocus={() => { if (pricingSearch.length >= 2) setShowPricingDropdown(true); }}
-                                onBlur={() => setTimeout(() => setShowPricingDropdown(false), 200)}
-                                className="rounded-xl pl-9"
-                            />
-                            {showPricingDropdown && (
-                                <div className="absolute z-50 top-full mt-1 w-full bg-background border border-border rounded-xl shadow-lg max-h-72 overflow-y-auto">
-                                    {pricingLoading && filteredServices.length === 0 && (
-                                        <div className="px-3 py-2 text-sm text-muted-foreground">Searching...</div>
-                                    )}
-
-                                    {/* Services section */}
-                                    {filteredServices.length > 0 && (
-                                        <>
-                                            <div className="px-3 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/40 border-b border-border/50">
-                                                Services
-                                            </div>
-                                            {filteredServices.map(svc => (
-                                                <button
-                                                    key={svc.id}
-                                                    type="button"
-                                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
-                                                    onClick={() => addServiceItem(svc)}
-                                                >
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <span className="font-medium truncate">{svc.name}</span>
-                                                        {svc.initial_value != null && (
-                                                            <span className="text-xs text-muted-foreground shrink-0">{formatCurrency(svc.initial_value)}</span>
-                                                        )}
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        </>
-                                    )}
-
-                                    {/* Materials section */}
-                                    {pricingResults.length > 0 && (
-                                        <>
-                                            <div className="px-3 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/40 border-b border-border/50">
-                                                Materials
-                                            </div>
-                                            {pricingResults.map((item) => (
-                                                <button
-                                                    key={item.Matrix_ID}
-                                                    type="button"
-                                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
-                                                    onClick={() => addPricingItem(item)}
-                                                >
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <div className="flex-1 min-w-0">
-                                                            <span className="font-medium truncate block">{item.Item}</span>
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {item.Trade}{item.Category ? ` / ${item.Category}` : ""}{item.UOM ? ` (${item.UOM})` : ""}
-                                                            </span>
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground text-right shrink-0">
-                                                            <div>Mat: {formatCurrency(parseNum(item.Material_Cost))}</div>
-                                                            <div>Lab: {formatCurrency(parseNum(item.Labour_Cost))}</div>
-                                                        </div>
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        </>
-                                    )}
-
-                                    {!pricingLoading && pricingResults.length === 0 && filteredServices.length === 0 && pricingSearch.length >= 2 && (
-                                        <div className="px-3 py-2 text-sm text-muted-foreground">No items found</div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
+                    {/* Scrollable content — line items, totals, notes */}
+                    <div className="flex-1 overflow-y-auto min-h-0 px-1 space-y-4">
                     {/* Line items table */}
                     <div className="rounded-xl border border-border bg-card overflow-hidden">
-                        <table className="w-full text-sm">
+                        <table className="w-full text-base">
                             <thead>
                                 <tr className="border-b border-border bg-secondary/30">
-                                    <th className="text-left px-4 py-2.5 text-sm font-medium text-muted-foreground uppercase tracking-wider">Item</th>
-                                    <th className="text-right px-4 py-2.5 text-sm font-medium text-muted-foreground uppercase tracking-wider w-[88px]">Qty</th>
-                                    <th className="text-right px-4 py-2.5 text-sm font-medium text-muted-foreground uppercase tracking-wider w-28">Material</th>
-                                    <th className="text-right px-4 py-2.5 text-sm font-medium text-muted-foreground uppercase tracking-wider w-28">Labour</th>
-                                    <th className="text-right px-4 py-2.5 text-sm font-medium text-muted-foreground uppercase tracking-wider w-28">Total</th>
+                                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">Item</th>
+                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[88px]">Qty</th>
+                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Material</th>
+                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Labour</th>
+                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Total</th>
                                     <th className="w-10" />
                                 </tr>
                             </thead>
                         </table>
                         <div className="max-h-[400px] overflow-y-auto">
-                            <table className="w-full text-sm">
+                            <table className="w-full text-base">
                                 <tbody>
                                     {lineItems.length === 0 && (
                                         <tr>
@@ -602,8 +612,10 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                         />
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center justify-between pt-2 border-t border-border">
+                    </div>{/* end scrollable content */}
+
+                    {/* Actions — non-scrollable footer */}
+                    <div className="flex items-center justify-between pt-3 mt-1 border-t border-border px-1 shrink-0">
                         <div className="text-sm text-muted-foreground">
                             {lineItems.length} item{lineItems.length !== 1 ? "s" : ""}
                             {lineItems.length > 0 && <span className="ml-2 font-medium text-foreground">{formatCurrency(totals.grandTotal)}</span>}
@@ -627,7 +639,7 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                     open={showCreateContact}
                     onOpenChange={setShowCreateContact}
                     onCreated={(contact) => {
-                        refreshContacts();
+                        mutateContacts();
                         setContactId(contact.id);
                         setContactSearch("");
                         if (contact.company_id) setCompanyId(contact.company_id);

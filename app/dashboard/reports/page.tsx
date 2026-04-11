@@ -145,7 +145,7 @@ export default function ReportsPage() {
                                 <td className={tableCell + " px-4"}>
                                     <div className="flex items-center gap-2">
                                         <div className={cn("w-1.5 h-1.5 rounded-full", reportStatusDotClass[report.status] || "bg-gray-400")} />
-                                        <span className="text-xs font-medium text-muted-foreground capitalize">
+                                        <span className="font-medium text-muted-foreground capitalize">
                                             {report.status.replace("_", " ")}
                                         </span>
                                     </div>
