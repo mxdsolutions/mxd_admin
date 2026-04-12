@@ -1,23 +1,26 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { SideSheetLayout } from "@/features/side-sheets/SideSheetLayout";
 import { DetailFields, LinkedEntityCard } from "./DetailFields";
 import { NotesPanel } from "./NotesPanel";
 import { ActivityTimeline } from "./ActivityTimeline";
-import { createClient } from "@/lib/supabase/client";
-import { QuoteHeader } from "@/components/quotes/QuoteHeader";
 import { Button } from "@/components/ui/button";
-import { IconDownload as ArrowDownTrayIcon } from "@tabler/icons-react";
+import { IconDownload as ArrowDownTrayIcon, IconPencil as PencilIcon } from "@tabler/icons-react";
 import { useTenantOptional } from "@/lib/tenant-context";
 import { toast } from "sonner";
 import { QUOTE_STATUS_CONFIG } from "@/lib/status-config";
+
+const EditQuoteModal = lazy(() =>
+    import("@/components/modals/EditQuoteModal").then(mod => ({ default: mod.EditQuoteModal }))
+);
 
 type Quote = {
     id: string;
     title: string;
     description: string | null;
+    scope_description?: string | null;
     status: string;
     total_amount: number;
     valid_until: string | null;
@@ -43,6 +46,7 @@ export function QuoteSideSheet({ quote, open, onOpenChange, onUpdate }: QuoteSid
     const [activeTab, setActiveTab] = useState("details");
     const [data, setData] = useState<Quote | null>(quote);
     const [downloading, setDownloading] = useState(false);
+    const [editOpen, setEditOpen] = useState(false);
     const tenant = useTenantOptional();
 
     useEffect(() => { setData(quote); }, [quote]);
@@ -52,14 +56,16 @@ export function QuoteSideSheet({ quote, open, onOpenChange, onUpdate }: QuoteSid
         if (!data) return;
         setDownloading(true);
         try {
-            // Fetch full quote data (with margins) and line items in parallel
-            const [quoteRes, liRes] = await Promise.all([
+            // Fetch full quote data, line items, and sections in parallel
+            const [quoteRes, liRes, secRes] = await Promise.all([
                 fetch(`/api/quotes?search=${encodeURIComponent(data.title)}&limit=1`),
                 fetch(`/api/quote-line-items?quote_id=${data.id}`),
+                fetch(`/api/quote-sections?quote_id=${data.id}`),
             ]);
-            const [quoteData, liData] = await Promise.all([quoteRes.json(), liRes.json()]);
+            const [quoteData, liData, secData] = await Promise.all([quoteRes.json(), liRes.json(), secRes.json()]);
             const fullQuote = quoteData.items?.find((q: Quote) => q.id === data.id) || data;
             const lineItems = liData.lineItems || [];
+            const pdfSections = secData.sections || [];
 
             // Dynamic import to avoid loading react-pdf until needed
             const [{ pdf }, { QuotePDF }] = await Promise.all([
@@ -68,9 +74,7 @@ export function QuoteSideSheet({ quote, open, onOpenChange, onUpdate }: QuoteSid
             ]);
 
             const { createElement } = await import("react");
-            // react-pdf's pdf() has strict DocumentProps typing that clashes with
-            // a dynamically-imported component's inferred type; cast through unknown.
-            const element = createElement(QuotePDF, { quote: fullQuote, lineItems, tenant: tenant! });
+            const element = createElement(QuotePDF, { quote: fullQuote, lineItems, sections: pdfSections, tenant: tenant! });
             const blob = await pdf(element as unknown as Parameters<typeof pdf>[0]).toBlob();
 
             const url = URL.createObjectURL(blob);
@@ -85,14 +89,16 @@ export function QuoteSideSheet({ quote, open, onOpenChange, onUpdate }: QuoteSid
 
     const handleSave = useCallback(async (column: string, value: string | number | null) => {
         if (!data) return;
-        const supabase = createClient();
-        const { error } = await supabase
-            .from("quotes")
-            .update({ [column]: value, updated_at: new Date().toISOString() })
-            .eq("id", data.id);
-        if (!error) {
+        const res = await fetch("/api/quotes", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: data.id, [column]: value }),
+        });
+        if (res.ok) {
             setData(prev => prev ? { ...prev, [column]: value } : prev);
             onUpdate?.();
+        } else {
+            toast.error("Failed to update field");
         }
     }, [data, onUpdate]);
 
@@ -105,7 +111,10 @@ export function QuoteSideSheet({ quote, open, onOpenChange, onUpdate }: QuoteSid
         { id: "activity", label: "Activity" },
     ];
 
+    const isDraft = data.status === "draft";
+
     return (
+        <>
         <SideSheetLayout
             open={open}
             onOpenChange={onOpenChange}
@@ -121,11 +130,34 @@ export function QuoteSideSheet({ quote, open, onOpenChange, onUpdate }: QuoteSid
             tabs={tabs}
             activeTab={activeTab}
             onTabChange={setActiveTab}
+            actions={
+                <>
+                    {isDraft && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-lg h-8 text-sm gap-1.5"
+                            onClick={() => setEditOpen(true)}
+                        >
+                            <PencilIcon className="w-3.5 h-3.5" />
+                            Edit Quote
+                        </Button>
+                    )}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg h-8 text-sm gap-1.5"
+                        onClick={handleDownloadPDF}
+                        disabled={downloading}
+                    >
+                        <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                        {downloading ? "Generating..." : "View PDF"}
+                    </Button>
+                </>
+            }
         >
             {activeTab === "details" && (
                 <div className="space-y-4">
-                    <QuoteHeader />
-
                     <div className="rounded-xl border border-border bg-card p-5">
                         <DetailFields
                             onSave={handleSave}
@@ -172,10 +204,25 @@ export function QuoteSideSheet({ quote, open, onOpenChange, onUpdate }: QuoteSid
                             onSave={handleSave}
                             fields={[
                                 {
+                                    label: "Scope",
+                                    value: data.scope_description || null,
+                                    dbColumn: "scope_description",
+                                    type: "textarea",
+                                    rawValue: data.scope_description,
+                                },
+                            ]}
+                        />
+                    </div>
+
+                    <div className="rounded-xl border border-border bg-card p-5">
+                        <DetailFields
+                            onSave={handleSave}
+                            fields={[
+                                {
                                     label: "Description",
                                     value: data.description || null,
                                     dbColumn: "description",
-                                    type: "text",
+                                    type: "textarea",
                                     rawValue: data.description,
                                 },
                             ]}
@@ -206,17 +253,6 @@ export function QuoteSideSheet({ quote, open, onOpenChange, onUpdate }: QuoteSid
                         />
                     )}
 
-                    <div className="pt-2">
-                        <Button
-                            variant="outline"
-                            className="w-full rounded-xl"
-                            onClick={handleDownloadPDF}
-                            disabled={downloading}
-                        >
-                            <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
-                            {downloading ? "Generating..." : "View PDF"}
-                        </Button>
-                    </div>
                 </div>
             )}
 
@@ -228,5 +264,17 @@ export function QuoteSideSheet({ quote, open, onOpenChange, onUpdate }: QuoteSid
                 <ActivityTimeline entityType="quote" entityId={data.id} />
             )}
         </SideSheetLayout>
+
+        {editOpen && (
+            <Suspense fallback={null}>
+                <EditQuoteModal
+                    open={editOpen}
+                    onOpenChange={setEditOpen}
+                    quoteId={data.id}
+                    onUpdated={onUpdate}
+                />
+            </Suspense>
+        )}
+        </>
     );
 }

@@ -5,7 +5,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { IconTrash as TrashIcon, IconSearch as MagnifyingGlassIcon, IconPlus as PlusIcon } from "@tabler/icons-react";
+import {
+    IconTrash as TrashIcon,
+    IconSearch as MagnifyingGlassIcon,
+    IconPlus as PlusIcon,
+    IconLayoutList as SectionIcon,
+    IconChevronUp,
+    IconChevronDown,
+} from "@tabler/icons-react";
 import { InlineNumberInput } from "@/features/line-items/InlineNumberInput";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -36,11 +43,18 @@ type ServiceItem = {
 type QuoteLineItem = {
     pricing_matrix_id: string | null;
     description: string;
+    line_description: string;
     trade: string;
     uom: string;
     quantity: number;
     material_cost: number;
     labour_cost: number;
+};
+
+type Section = {
+    id: string;
+    name: string;
+    items: QuoteLineItem[];
 };
 
 function parseNum(val: string | null | undefined): number {
@@ -62,64 +76,52 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
 
     // Quote fields
     const [description, setDescription] = useState("");
+    const [scopeDescription, setScopeDescription] = useState("");
     const [validUntil, setValidUntil] = useState(defaultValidUntil());
     const [materialMargin, setMaterialMargin] = useState(20);
     const [labourMargin, setLabourMargin] = useState(20);
     const [gstInclusive, setGstInclusive] = useState(true);
 
-    // Contact — list comes from SWR, only fetched while the modal is open
+    // Contact
     const { data: contactsData, mutate: mutateContacts } = useContactOptions(open);
-    const contacts: ContactOption[] = useMemo(
-        () => contactsData?.items ?? [],
-        [contactsData],
-    );
+    const contacts: ContactOption[] = useMemo(() => contactsData?.items ?? [], [contactsData]);
     const [contactId, setContactId] = useState("");
     const [contactSearch, setContactSearch] = useState("");
     const [showContactDropdown, setShowContactDropdown] = useState(false);
     const [showCreateContact, setShowCreateContact] = useState(false);
-
-    // Company (auto-filled from contact)
     const [companyId, setCompanyId] = useState("");
 
-    // Services (preloaded — small dataset, only fetched while the modal is open)
+    // Services
     const { data: servicesData } = useServiceOptions(open);
-    const services: ServiceItem[] = useMemo(
-        () => servicesData?.items ?? [],
-        [servicesData],
-    );
+    const services: ServiceItem[] = useMemo(() => servicesData?.items ?? [], [servicesData]);
 
-    // Pricing search (API-backed — large dataset)
+    // Pricing search
     const [pricingSearch, setPricingSearch] = useState("");
     const [pricingResults, setPricingResults] = useState<PricingItem[]>([]);
     const [showPricingDropdown, setShowPricingDropdown] = useState(false);
     const [pricingLoading, setPricingLoading] = useState(false);
     const pricingDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    // Bumped on every new search request; lets us discard stale responses that
-    // resolve out-of-order (e.g. "ti" landing after "tile").
     const pricingRequestIdRef = useRef(0);
 
-    // Line items
-    const [lineItems, setLineItems] = useState<QuoteLineItem[]>([]);
+    // Sections
+    const [sections, setSections] = useState<Section[]>([]);
+    const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
-    // Apply default contact / company once when the modal opens.
+    // All items flat (for calculations)
+    const allItems = useMemo(() => sections.flatMap(s => s.items), [sections]);
+    const totalItemCount = allItems.length;
+
     useEffect(() => {
         if (!open) return;
         if (defaultValues?.contactId) setContactId(defaultValues.contactId);
         if (defaultValues?.companyId) setCompanyId(defaultValues.companyId);
-        // Intentionally only react to open/close. `defaultValues` is consumed
-        // once at open time; treating it as a dep would re-apply defaults on
-        // every parent render.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
-    // Cancel any pending pricing-search debounce when the modal unmounts.
     useEffect(() => () => {
         if (pricingDebounceRef.current) clearTimeout(pricingDebounceRef.current);
     }, []);
 
-    // Debounced pricing search (150ms — trigram index makes DB queries fast)
-    // Min 3 chars: pg_trgm needs full trigrams (3 chars) to use the GIN indexes;
-    // shorter inputs fall back to a seq scan over the whole pricing table.
     const searchPricing = useCallback((query: string) => {
         if (pricingDebounceRef.current) clearTimeout(pricingDebounceRef.current);
         if (query.length < 3) {
@@ -133,16 +135,13 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
             try {
                 const res = await fetch(`/api/pricing?search=${encodeURIComponent(query)}&limit=20`);
                 const data = await res.json();
-                // Discard if a newer search has been kicked off in the meantime.
                 if (requestId !== pricingRequestIdRef.current) return;
                 setPricingResults(data.items || []);
             } catch {
                 if (requestId !== pricingRequestIdRef.current) return;
                 setPricingResults([]);
             } finally {
-                if (requestId === pricingRequestIdRef.current) {
-                    setPricingLoading(false);
-                }
+                if (requestId === pricingRequestIdRef.current) setPricingLoading(false);
             }
         }, 150);
     }, []);
@@ -154,11 +153,17 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
             (c.email && c.email.toLowerCase().includes(contactSearch.toLowerCase()));
     });
 
+    const filteredServices = useMemo(() => {
+        if (pricingSearch.length < 3) return [];
+        const q = pricingSearch.toLowerCase();
+        return services.filter(s => s.name.toLowerCase().includes(q));
+    }, [pricingSearch, services]);
+
     // Calculations
     const totals = useMemo(() => {
         let materialSum = 0;
         let labourSum = 0;
-        for (const li of lineItems) {
+        for (const li of allItems) {
             materialSum += li.quantity * li.material_cost;
             labourSum += li.quantity * li.labour_cost;
         }
@@ -167,19 +172,12 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
         const subtotal = materialWithMargin + labourWithMargin;
         const gst = gstInclusive ? subtotal / 11 : subtotal * GST_RATE;
         const grandTotal = gstInclusive ? subtotal : subtotal + gst;
-        return {
-            materialSum,
-            labourSum,
-            materialWithMargin,
-            labourWithMargin,
-            subtotal,
-            gst,
-            grandTotal,
-        };
-    }, [lineItems, materialMargin, labourMargin, gstInclusive]);
+        return { materialSum, labourSum, subtotal, gst, grandTotal };
+    }, [allItems, materialMargin, labourMargin, gstInclusive]);
 
     const reset = () => {
         setDescription("");
+        setScopeDescription("");
         setValidUntil(defaultValidUntil());
         setMaterialMargin(20);
         setLabourMargin(20);
@@ -190,66 +188,111 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
         setPricingSearch("");
         setPricingResults([]);
         setPricingLoading(false);
-        // Invalidate any in-flight search so a late response can't repopulate.
         pricingRequestIdRef.current++;
-        setLineItems([]);
+        setSections([]);
+        setActiveSectionId(null);
     };
 
-    const filteredServices = useMemo(() => {
-        if (pricingSearch.length < 3) return [];
-        const q = pricingSearch.toLowerCase();
-        return services.filter(s => s.name.toLowerCase().includes(q));
-    }, [pricingSearch, services]);
+    // Section management
+    const addSection = () => {
+        const id = crypto.randomUUID();
+        const name = `Section ${sections.length + 1}`;
+        setSections(prev => [...prev, { id, name, items: [] }]);
+        setActiveSectionId(id);
+    };
 
-    const addPricingItem = (item: PricingItem) => {
-        setLineItems(prev => [
-            ...prev,
-            {
-                pricing_matrix_id: item.Matrix_ID,
-                description: item.Item || "Unknown Item",
-                trade: item.Trade || "",
-                uom: item.UOM || "",
-                quantity: 1,
-                material_cost: parseNum(item.Material_Cost),
-                labour_cost: parseNum(item.Labour_Cost),
-            },
-        ]);
+    const updateSectionName = (sectionId: string, name: string) => {
+        setSections(prev => prev.map(s => s.id === sectionId ? { ...s, name } : s));
+    };
+
+    const removeSection = (sectionId: string) => {
+        setSections(prev => prev.filter(s => s.id !== sectionId));
+        if (activeSectionId === sectionId) {
+            setActiveSectionId(sections.length > 1 ? sections.find(s => s.id !== sectionId)?.id ?? null : null);
+        }
+    };
+
+    const moveSectionUp = (idx: number) => {
+        if (idx === 0) return;
+        setSections(prev => {
+            const next = [...prev];
+            [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+            return next;
+        });
+    };
+
+    const moveSectionDown = (idx: number) => {
+        if (idx >= sections.length - 1) return;
+        setSections(prev => {
+            const next = [...prev];
+            [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+            return next;
+        });
+    };
+
+    // Add item to active section
+    const addItemToSection = (item: QuoteLineItem) => {
+        if (!activeSectionId) {
+            // Auto-create first section
+            const id = crypto.randomUUID();
+            setSections([{ id, name: "Section 1", items: [item] }]);
+            setActiveSectionId(id);
+            return;
+        }
+        setSections(prev => prev.map(s =>
+            s.id === activeSectionId ? { ...s, items: [...s.items, item] } : s
+        ));
+    };
+
+    const addPricingItem = (pricingItem: PricingItem) => {
+        addItemToSection({
+            pricing_matrix_id: pricingItem.Matrix_ID,
+            description: pricingItem.Item || "Unknown Item",
+            line_description: "",
+            trade: pricingItem.Trade || "",
+            uom: pricingItem.UOM || "",
+            quantity: 1,
+            material_cost: parseNum(pricingItem.Material_Cost),
+            labour_cost: parseNum(pricingItem.Labour_Cost),
+        });
         setPricingSearch("");
         setShowPricingDropdown(false);
     };
 
     const addServiceItem = (svc: ServiceItem) => {
-        setLineItems(prev => [
-            ...prev,
-            {
-                pricing_matrix_id: null,
-                description: svc.name,
-                trade: "Service",
-                uom: "each",
-                quantity: 1,
-                material_cost: 0,
-                labour_cost: svc.initial_value || 0,
-            },
-        ]);
+        addItemToSection({
+            pricing_matrix_id: null,
+            description: svc.name,
+            line_description: "",
+            trade: "Service",
+            uom: "each",
+            quantity: 1,
+            material_cost: 0,
+            labour_cost: svc.initial_value || 0,
+        });
         setPricingSearch("");
         setShowPricingDropdown(false);
     };
 
-    const updateLineItem = (idx: number, field: keyof QuoteLineItem, value: number) => {
-        setLineItems(prev => {
-            const updated = [...prev];
-            updated[idx] = { ...updated[idx], [field]: value };
-            return updated;
-        });
+    const updateLineItem = (sectionId: string, itemIdx: number, field: keyof QuoteLineItem, value: number | string) => {
+        setSections(prev => prev.map(s => {
+            if (s.id !== sectionId) return s;
+            const items = [...s.items];
+            items[itemIdx] = { ...items[itemIdx], [field]: value };
+            return { ...s, items };
+        }));
     };
 
-    const removeLineItem = (idx: number) => {
-        setLineItems(prev => prev.filter((_, i) => i !== idx));
+    const removeLineItem = (sectionId: string, itemIdx: number) => {
+        setSections(prev => prev.map(s => {
+            if (s.id !== sectionId) return s;
+            return { ...s, items: s.items.filter((_, i) => i !== itemIdx) };
+        }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (lineItems.length === 0) return;
+        if (totalItemCount === 0) return;
 
         setSaving(true);
         try {
@@ -258,6 +301,7 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     description: description.trim() || null,
+                    scope_description: scopeDescription.trim() || null,
                     contact_id: contactId || null,
                     company_id: companyId || null,
                     job_id: defaultValues?.jobId || null,
@@ -265,7 +309,14 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                     material_margin: materialMargin,
                     labour_margin: labourMargin,
                     gst_inclusive: gstInclusive,
-                    line_items: lineItems,
+                    sections: sections.map((s, si) => ({
+                        name: s.name,
+                        sort_order: si,
+                        items: s.items.map((item, ii) => ({
+                            ...item,
+                            sort_order: ii,
+                        })),
+                    })),
                 }),
             });
             if (!res.ok) throw new Error("Failed to create quote");
@@ -291,11 +342,10 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-                    {/* Non-scrollable top section — dropdowns must NOT be inside overflow-y-auto */}
+                    {/* Non-scrollable top section */}
                     <div className="px-1 space-y-4 pb-4">
                         {/* Header fields: Contact, Valid Until */}
                         <div className="grid grid-cols-2 gap-3">
-                            {/* Contact selector with search + create */}
                             <div className="space-y-1.5">
                                 <label className="text-sm font-medium text-muted-foreground">Contact</label>
                                 <div className="relative">
@@ -371,13 +421,37 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                             </div>
                         </div>
 
-                        {/* Pricing search */}
+                        {/* Scope description */}
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-muted-foreground">Add Line Items</label>
+                            <label className="text-sm font-medium text-muted-foreground">Scope / Description</label>
+                            <textarea
+                                placeholder="Describe the scope of work..."
+                                value={scopeDescription}
+                                onChange={(e) => setScopeDescription(e.target.value)}
+                                rows={2}
+                                className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                            />
+                        </div>
+
+                        {/* Pricing search + Add Section */}
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium text-muted-foreground">Line Items</label>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-lg h-7 text-xs gap-1"
+                                    onClick={addSection}
+                                >
+                                    <SectionIcon className="w-3.5 h-3.5" />
+                                    Add Section
+                                </Button>
+                            </div>
                             <div className="relative">
                                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="Search materials or services..."
+                                    placeholder={activeSectionId ? `Search materials — adding to "${sections.find(s => s.id === activeSectionId)?.name}"` : "Search materials or services..."}
                                     value={pricingSearch}
                                     onChange={(e) => {
                                         setPricingSearch(e.target.value);
@@ -394,7 +468,6 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                                             <div className="px-3 py-2 text-sm text-muted-foreground">Searching...</div>
                                         )}
 
-                                        {/* Services section */}
                                         {filteredServices.length > 0 && (
                                             <>
                                                 <div className="px-3 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/40 border-b border-border/50">
@@ -418,7 +491,6 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                                             </>
                                         )}
 
-                                        {/* Materials section */}
                                         {pricingResults.length > 0 && (
                                             <>
                                                 <div className="px-3 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/40 border-b border-border/50">
@@ -457,174 +529,215 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                         </div>
                     </div>
 
-                    {/* Scrollable content — line items, totals, notes */}
+                    {/* Scrollable content */}
                     <div className="flex-1 overflow-y-auto min-h-0 px-1 space-y-4">
-                    {/* Line items table */}
-                    <div className="rounded-xl border border-border bg-card overflow-hidden">
-                        <table className="w-full text-base">
-                            <thead>
-                                <tr className="border-b border-border bg-secondary/30">
-                                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">Item</th>
-                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[88px]">Qty</th>
-                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Material</th>
-                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Labour</th>
-                                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Total</th>
-                                    <th className="w-10" />
-                                </tr>
-                            </thead>
-                        </table>
-                        <div className="max-h-[400px] overflow-y-auto">
-                            <table className="w-full text-base">
-                                <tbody>
-                                    {lineItems.length === 0 && (
-                                        <tr>
-                                            <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                                                Search and add materials or services above
-                                            </td>
-                                        </tr>
-                                    )}
-                                    {lineItems.map((li, idx) => {
-                                        const lineTotal = li.quantity * (li.material_cost + li.labour_cost);
-                                        return (
-                                            <tr key={idx} className="border-b border-border/50 last:border-0">
-                                                <td className="px-4 py-3 font-medium">{li.description}</td>
-                                                <td className="px-4 py-3 text-right w-[88px]">
-                                                    <InlineNumberInput
-                                                        value={li.quantity}
-                                                        onSave={(v) => updateLineItem(idx, "quantity", v)}
-                                                    />
-                                                </td>
-                                                <td className="px-4 py-3 text-right w-28">
-                                                    <InlineNumberInput
-                                                        value={li.material_cost}
-                                                        onSave={(v) => updateLineItem(idx, "material_cost", v)}
-                                                        prefix="$"
-                                                    />
-                                                </td>
-                                                <td className="px-4 py-3 text-right w-28">
-                                                    <InlineNumberInput
-                                                        value={li.labour_cost}
-                                                        onSave={(v) => updateLineItem(idx, "labour_cost", v)}
-                                                        prefix="$"
-                                                    />
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-medium tabular-nums w-28">
-                                                    {formatCurrency(lineTotal)}
-                                                </td>
-                                                <td className="px-2 py-3 w-10">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeLineItem(idx)}
-                                                        className="p-1 rounded-md text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
-                                                    >
-                                                        <TrashIcon className="w-4 h-4" />
-                                                    </button>
-                                                </td>
+                        {/* Sections with line items */}
+                        {sections.length === 0 && (
+                            <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-muted-foreground text-sm">
+                                Click &ldquo;Add Section&rdquo; to start building your quote, then search to add items.
+                            </div>
+                        )}
+
+                        {sections.map((section, sectionIdx) => {
+                            const isActive = activeSectionId === section.id;
+                            const sectionTotal = section.items.reduce((sum, li) => sum + li.quantity * (li.material_cost + li.labour_cost), 0);
+                            return (
+                                <div
+                                    key={section.id}
+                                    className={`rounded-xl border bg-card overflow-hidden transition-colors ${isActive ? "border-primary/40 ring-1 ring-primary/20" : "border-border"}`}
+                                    onClick={() => setActiveSectionId(section.id)}
+                                >
+                                    {/* Section header */}
+                                    <div className="flex items-center gap-2 px-4 py-2.5 bg-secondary/30 border-b border-border">
+                                        <SectionIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                                        <input
+                                            type="text"
+                                            value={section.name}
+                                            onChange={(e) => updateSectionName(section.id, e.target.value)}
+                                            className="flex-1 bg-transparent font-medium text-sm focus:outline-none focus:bg-muted/40 rounded px-1 py-0.5 -ml-1 border border-transparent focus:border-border transition-colors"
+                                        />
+                                        <div className="flex items-center gap-0.5 shrink-0">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); moveSectionUp(sectionIdx); }}
+                                                disabled={sectionIdx === 0}
+                                                className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                                            >
+                                                <IconChevronUp className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); moveSectionDown(sectionIdx); }}
+                                                disabled={sectionIdx === sections.length - 1}
+                                                className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                                            >
+                                                <IconChevronDown className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); removeSection(section.id); }}
+                                                className="p-1 rounded-md text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors ml-1"
+                                            >
+                                                <TrashIcon className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Section line items */}
+                                    <table className="w-full text-base">
+                                        <thead>
+                                            <tr className="border-b border-border/50">
+                                                <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Item</th>
+                                                <th className="text-right px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[88px]">Qty</th>
+                                                <th className="text-right px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Material</th>
+                                                <th className="text-right px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Labour</th>
+                                                <th className="text-right px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Total</th>
+                                                <th className="w-10" />
                                             </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                        </thead>
+                                        <tbody>
+                                            {section.items.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground/60 text-sm">
+                                                        {isActive ? "Search above to add items to this section" : "Click to select, then search to add items"}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            {section.items.map((li, itemIdx) => {
+                                                const lineTotal = li.quantity * (li.material_cost + li.labour_cost);
+                                                return (
+                                                    <tr key={itemIdx} className="border-b border-border/50 last:border-0">
+                                                        <td className="px-4 py-2">
+                                                            <input
+                                                                type="text"
+                                                                value={li.description}
+                                                                onChange={(e) => updateLineItem(section.id, itemIdx, "description", e.target.value)}
+                                                                className="w-full bg-transparent font-medium text-sm focus:outline-none focus:bg-muted/40 rounded px-1 py-0.5 -ml-1 border border-transparent focus:border-border transition-colors"
+                                                            />
+                                                            <input
+                                                                type="text"
+                                                                value={li.line_description}
+                                                                onChange={(e) => updateLineItem(section.id, itemIdx, "line_description", e.target.value)}
+                                                                placeholder="Add description..."
+                                                                className="w-full bg-transparent text-xs text-muted-foreground focus:outline-none focus:bg-muted/40 rounded px-1 py-0.5 -ml-1 border border-transparent focus:border-border transition-colors mt-0.5 placeholder:text-muted-foreground/40"
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right w-[88px]">
+                                                            <InlineNumberInput value={li.quantity} onSave={(v) => updateLineItem(section.id, itemIdx, "quantity", v)} />
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right w-28">
+                                                            <InlineNumberInput value={li.material_cost} onSave={(v) => updateLineItem(section.id, itemIdx, "material_cost", v)} prefix="$" />
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right w-28">
+                                                            <InlineNumberInput value={li.labour_cost} onSave={(v) => updateLineItem(section.id, itemIdx, "labour_cost", v)} prefix="$" />
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-medium tabular-nums w-28">
+                                                            {formatCurrency(lineTotal)}
+                                                        </td>
+                                                        <td className="px-2 py-3 w-10">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeLineItem(section.id, itemIdx)}
+                                                                className="p-1 rounded-md text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                                                            >
+                                                                <TrashIcon className="w-4 h-4" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
 
-                    {/* Summary */}
-                    {lineItems.length > 0 && (
-                        <div className="flex justify-end">
-                            <div className="w-full max-w-[50%] rounded-xl border border-border bg-secondary/20 p-4 space-y-3">
-                                {/* Subtotals */}
-                                <div className="space-y-1.5 text-sm">
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Materials subtotal</span>
-                                        <span className="tabular-nums">{formatCurrency(totals.materialSum)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Labour subtotal</span>
-                                        <span className="tabular-nums">{formatCurrency(totals.labourSum)}</span>
-                                    </div>
+                                    {/* Section subtotal */}
+                                    {section.items.length > 0 && (
+                                        <div className="flex justify-end px-4 py-2 border-t border-border/50 bg-secondary/10">
+                                            <span className="text-xs text-muted-foreground mr-2">Section total:</span>
+                                            <span className="text-sm font-medium tabular-nums">{formatCurrency(sectionTotal)}</span>
+                                        </div>
+                                    )}
                                 </div>
+                            );
+                        })}
 
-                                {/* Margin inputs */}
-                                <div className="border-t border-border/50 pt-3 grid grid-cols-2 gap-2">
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] text-muted-foreground">Material margin</label>
-                                        <div className="relative">
-                                            <Input
-                                                type="number"
-                                                min={0}
-                                                max={100}
-                                                value={materialMargin}
-                                                onChange={(e) => setMaterialMargin(Number(e.target.value) || 0)}
-                                                className="rounded-lg h-8 text-xs pr-7"
-                                            />
-                                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                        {/* Summary */}
+                        {totalItemCount > 0 && (
+                            <div className="flex justify-end">
+                                <div className="w-full max-w-[50%] rounded-xl border border-border bg-secondary/20 p-4 space-y-3">
+                                    <div className="space-y-1.5 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Materials subtotal</span>
+                                            <span className="tabular-nums">{formatCurrency(totals.materialSum)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Labour subtotal</span>
+                                            <span className="tabular-nums">{formatCurrency(totals.labourSum)}</span>
                                         </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] text-muted-foreground">Labour margin</label>
-                                        <div className="relative">
-                                            <Input
-                                                type="number"
-                                                min={0}
-                                                max={100}
-                                                value={labourMargin}
-                                                onChange={(e) => setLabourMargin(Number(e.target.value) || 0)}
-                                                className="rounded-lg h-8 text-xs pr-7"
-                                            />
-                                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+
+                                    <div className="border-t border-border/50 pt-3 grid grid-cols-2 gap-2">
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] text-muted-foreground">Material margin</label>
+                                            <div className="relative">
+                                                <Input type="number" min={0} max={100} value={materialMargin} onChange={(e) => setMaterialMargin(Number(e.target.value) || 0)} className="rounded-lg h-8 text-xs pr-7" />
+                                                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] text-muted-foreground">Labour margin</label>
+                                            <div className="relative">
+                                                <Input type="number" min={0} max={100} value={labourMargin} onChange={(e) => setLabourMargin(Number(e.target.value) || 0)} className="rounded-lg h-8 text-xs pr-7" />
+                                                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* GST */}
-                                <div className="border-t border-border/50 pt-3 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <select
-                                            value={gstInclusive ? "inclusive" : "exclusive"}
-                                            onChange={(e) => setGstInclusive(e.target.value === "inclusive")}
-                                            className="text-xs bg-transparent border border-border rounded-lg px-2 py-1 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                                        >
-                                            <option value="inclusive">GST Inclusive</option>
-                                            <option value="exclusive">GST Exclusive</option>
-                                        </select>
-                                        <span className="tabular-nums text-sm">{formatCurrency(totals.gst)}</span>
+                                    <div className="border-t border-border/50 pt-3 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <select
+                                                value={gstInclusive ? "inclusive" : "exclusive"}
+                                                onChange={(e) => setGstInclusive(e.target.value === "inclusive")}
+                                                className="text-xs bg-transparent border border-border rounded-lg px-2 py-1 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                            >
+                                                <option value="inclusive">GST Inclusive</option>
+                                                <option value="exclusive">GST Exclusive</option>
+                                            </select>
+                                            <span className="tabular-nums text-sm">{formatCurrency(totals.gst)}</span>
+                                        </div>
                                     </div>
-                                </div>
 
-                                {/* Total */}
-                                <div className="border-t border-border pt-3 flex justify-between font-bold text-base">
-                                    <span>Grand Total</span>
-                                    <span className="tabular-nums">{formatCurrency(totals.grandTotal)}</span>
+                                    <div className="border-t border-border pt-3 flex justify-between font-bold text-base">
+                                        <span>Grand Total</span>
+                                        <span className="tabular-nums">{formatCurrency(totals.grandTotal)}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Description */}
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-muted-foreground">Notes</label>
-                        <textarea
-                            placeholder="Additional notes..."
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows={2}
-                            className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                        />
+                        {/* Notes */}
+                        <div className="space-y-1.5 mb-3">
+                            <label className="text-sm font-medium text-muted-foreground">Notes</label>
+                            <textarea
+                                placeholder="Additional notes..."
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                rows={2}
+                                className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                            />
+                        </div>
                     </div>
 
-                    </div>{/* end scrollable content */}
-
-                    {/* Actions — non-scrollable footer */}
+                    {/* Footer */}
                     <div className="flex items-center justify-between pt-3 mt-1 border-t border-border px-1 shrink-0">
                         <div className="text-sm text-muted-foreground">
-                            {lineItems.length} item{lineItems.length !== 1 ? "s" : ""}
-                            {lineItems.length > 0 && <span className="ml-2 font-medium text-foreground">{formatCurrency(totals.grandTotal)}</span>}
+                            {sections.length} section{sections.length !== 1 ? "s" : ""} · {totalItemCount} item{totalItemCount !== 1 ? "s" : ""}
+                            {totalItemCount > 0 && <span className="ml-2 font-medium text-foreground">{formatCurrency(totals.grandTotal)}</span>}
                         </div>
                         <div className="flex gap-2">
                             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={lineItems.length === 0 || saving}>
+                            <Button type="submit" disabled={totalItemCount === 0 || saving}>
                                 {saving ? "Creating..." : "Create Quote"}
                             </Button>
                         </div>

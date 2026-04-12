@@ -129,6 +129,7 @@ export const replyEmailSchema = z.object({
 export const quoteSchema = z.object({
     title: z.string().max(500).optional().nullable(),
     description: z.string().max(2000).optional().nullable(),
+    scope_description: z.string().max(5000).optional().nullable(),
     company_id: z.string().uuid().optional().nullable(),
     contact_id: z.string().uuid().optional().nullable(),
     job_id: z.string().uuid().optional().nullable(),
@@ -138,15 +139,29 @@ export const quoteSchema = z.object({
     notes: z.string().max(5000).optional().nullable(),
     material_margin: z.number().min(0).max(100).optional(),
     labour_margin: z.number().min(0).max(100).optional(),
+    gst_inclusive: z.boolean().optional(),
 });
 
 export const quoteUpdateSchema = z.object({
     id: z.string().uuid("Valid ID is required"),
 }).merge(quoteSchema.partial());
 
+const quoteLineItemInput = z.object({
+    pricing_matrix_id: z.string().optional().nullable(),
+    description: z.string().min(1).max(500),
+    line_description: z.string().max(1000).optional().nullable(),
+    trade: z.string().optional().nullable(),
+    uom: z.string().optional().nullable(),
+    quantity: z.number().min(0),
+    material_cost: z.number().min(0),
+    labour_cost: z.number().min(0),
+    sort_order: z.number().int().min(0).optional(),
+});
+
 export const createQuoteWithItemsSchema = z.object({
     title: z.string().max(500).optional().nullable(),
     description: z.string().max(2000).optional().nullable(),
+    scope_description: z.string().max(5000).optional().nullable(),
     company_id: z.string().uuid().optional().nullable(),
     contact_id: z.string().uuid().optional().nullable(),
     job_id: z.string().uuid().optional().nullable(),
@@ -154,15 +169,12 @@ export const createQuoteWithItemsSchema = z.object({
     material_margin: z.number().min(0).max(100),
     labour_margin: z.number().min(0).max(100),
     gst_inclusive: z.boolean().optional(),
-    line_items: z.array(z.object({
-        pricing_matrix_id: z.string().optional().nullable(),
-        description: z.string().min(1).max(500),
-        trade: z.string().optional().nullable(),
-        uom: z.string().optional().nullable(),
-        quantity: z.number().min(0),
-        material_cost: z.number().min(0),
-        labour_cost: z.number().min(0),
-    })).min(1, "At least one line item is required"),
+    sections: z.array(z.object({
+        name: z.string().min(1).max(200),
+        sort_order: z.number().int().min(0),
+        items: z.array(quoteLineItemInput),
+    })).optional(),
+    line_items: z.array(quoteLineItemInput).optional(),
 });
 
 // --- Report Schemas ---

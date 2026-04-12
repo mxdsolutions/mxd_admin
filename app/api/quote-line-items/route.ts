@@ -7,19 +7,26 @@ import { z } from "zod";
 const quoteLineItemSchema = z.object({
     quote_id: z.string().uuid(),
     pricing_matrix_id: z.string().optional().nullable(),
+    section_id: z.string().uuid().optional().nullable(),
     description: z.string().min(1),
+    line_description: z.string().max(1000).optional().nullable(),
     trade: z.string().optional().nullable(),
     uom: z.string().optional().nullable(),
     quantity: z.number().min(0),
     material_cost: z.number().min(0),
     labour_cost: z.number().min(0),
+    sort_order: z.number().int().min(0).optional(),
 });
 
 const quoteLineItemUpdateSchema = z.object({
     id: z.string().uuid(),
+    section_id: z.string().uuid().optional().nullable(),
+    description: z.string().min(1).optional(),
+    line_description: z.string().max(1000).optional().nullable(),
     quantity: z.number().min(0).optional(),
     material_cost: z.number().min(0).optional(),
     labour_cost: z.number().min(0).optional(),
+    sort_order: z.number().int().min(0).optional(),
 });
 
 export const GET = withAuth(async (request, { supabase, tenantId }) => {
@@ -31,6 +38,7 @@ export const GET = withAuth(async (request, { supabase, tenantId }) => {
         .select("*")
         .eq("tenant_id", tenantId)
         .eq("quote_id", quoteId)
+        .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true });
 
     if (error) return serverError();
@@ -51,13 +59,16 @@ export const POST = withAuth(async (request, { supabase, tenantId }) => {
         .insert({
             quote_id: d.quote_id,
             pricing_matrix_id: d.pricing_matrix_id || null,
+            section_id: d.section_id || null,
             description: d.description,
+            line_description: d.line_description || null,
             trade: d.trade || null,
             uom: d.uom || null,
             quantity: d.quantity,
             material_cost: d.material_cost,
             labour_cost: d.labour_cost,
             unit_price: d.material_cost + d.labour_cost,
+            sort_order: d.sort_order ?? 0,
             tenant_id: tenantId,
         })
         .select()

@@ -34,12 +34,18 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
     // Try composite schema first (quote + line items), fallback to simple
     const compositeValidation = createQuoteWithItemsSchema.safeParse(body);
     if (compositeValidation.success) {
-        const { line_items, ...quoteFields } = compositeValidation.data;
+        const { line_items, sections, ...quoteFields } = compositeValidation.data;
+
+        // Gather all items for total calculation
+        const allItems = [
+            ...(line_items || []),
+            ...(sections || []).flatMap(s => s.items),
+        ];
 
         // Calculate total from line items + margins
         let materialSum = 0;
         let labourSum = 0;
-        for (const li of line_items) {
+        for (const li of allItems) {
             materialSum += li.quantity * li.material_cost;
             labourSum += li.quantity * li.labour_cost;
         }
@@ -72,24 +78,75 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
 
         if (quoteError) return serverError();
 
-        const lineItemRows = line_items.map((li) => ({
-            quote_id: quote.id,
-            pricing_matrix_id: li.pricing_matrix_id || null,
-            description: li.description,
-            trade: li.trade || null,
-            uom: li.uom || null,
-            quantity: li.quantity,
-            material_cost: li.material_cost,
-            labour_cost: li.labour_cost,
-            unit_price: li.material_cost + li.labour_cost,
-            tenant_id: tenantId,
-        }));
+        const lineItemRows: Record<string, unknown>[] = [];
 
-        const { error: liError } = await supabase
-            .from("quote_line_items")
-            .insert(lineItemRows);
+        // Insert sections and their items
+        if (sections && sections.length > 0) {
+            const sectionRows = sections.map(s => ({
+                quote_id: quote.id,
+                name: s.name,
+                sort_order: s.sort_order,
+                tenant_id: tenantId,
+            }));
 
-        if (liError) return serverError();
+            const { data: insertedSections, error: secError } = await supabase
+                .from("quote_sections")
+                .insert(sectionRows)
+                .select();
+
+            if (secError) return serverError();
+
+            // Map items to their section IDs (sections inserted in order)
+            for (let si = 0; si < sections.length; si++) {
+                const section = sections[si];
+                const dbSection = insertedSections[si];
+                for (const li of section.items) {
+                    lineItemRows.push({
+                        quote_id: quote.id,
+                        section_id: dbSection.id,
+                        pricing_matrix_id: li.pricing_matrix_id || null,
+                        description: li.description,
+                        line_description: li.line_description || null,
+                        trade: li.trade || null,
+                        uom: li.uom || null,
+                        quantity: li.quantity,
+                        material_cost: li.material_cost,
+                        labour_cost: li.labour_cost,
+                        unit_price: li.material_cost + li.labour_cost,
+                        sort_order: li.sort_order ?? 0,
+                        tenant_id: tenantId,
+                    });
+                }
+            }
+        }
+
+        // Also insert unsectioned line items (backward compat)
+        if (line_items && line_items.length > 0) {
+            for (const li of line_items) {
+                lineItemRows.push({
+                    quote_id: quote.id,
+                    section_id: null,
+                    pricing_matrix_id: li.pricing_matrix_id || null,
+                    description: li.description,
+                    line_description: li.line_description || null,
+                    trade: li.trade || null,
+                    uom: li.uom || null,
+                    quantity: li.quantity,
+                    material_cost: li.material_cost,
+                    labour_cost: li.labour_cost,
+                    unit_price: li.material_cost + li.labour_cost,
+                    sort_order: li.sort_order ?? 0,
+                    tenant_id: tenantId,
+                });
+            }
+        }
+
+        if (lineItemRows.length > 0) {
+            const { error: liError } = await supabase
+                .from("quote_line_items")
+                .insert(lineItemRows);
+            if (liError) return serverError();
+        }
 
         return NextResponse.json({ item: quote }, { status: 201 });
     }

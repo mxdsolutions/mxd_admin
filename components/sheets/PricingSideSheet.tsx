@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { DetailFields } from "./DetailFields";
 import { SideSheetLayout } from "@/features/side-sheets/SideSheetLayout";
-import { createClient } from "@/lib/supabase/client";
 import { IconCurrencyDollar as CurrencyDollarIcon } from "@tabler/icons-react";
+import { toast } from "sonner";
 import type { PricingItem } from "@/lib/swr";
 
 interface PricingSideSheetProps {
@@ -23,14 +23,16 @@ export function PricingSideSheet({ item, open, onOpenChange, onUpdate }: Pricing
 
     const handleSave = useCallback(async (column: string, value: string | number | null) => {
         if (!data?.Matrix_ID) return;
-        const supabase = createClient();
-        const { error } = await supabase
-            .from("pricing")
-            .update({ [column]: value })
-            .eq("Matrix_ID", data.Matrix_ID);
-        if (!error) {
+        const res = await fetch("/api/pricing", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ Matrix_ID: data.Matrix_ID, [column]: value }),
+        });
+        if (res.ok) {
             setData((prev) => prev ? { ...prev, [column]: value } : prev);
             onUpdate?.();
+        } else {
+            toast.error("Failed to update field");
         }
     }, [data, onUpdate]);
 

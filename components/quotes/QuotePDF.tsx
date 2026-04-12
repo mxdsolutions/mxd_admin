@@ -12,18 +12,28 @@ import {
 type LineItem = {
     id: string;
     description: string;
+    line_description?: string | null;
     trade: string | null;
     uom: string | null;
     quantity: number;
     material_cost: number;
     labour_cost: number;
     unit_price: number;
+    section_id?: string | null;
+    sort_order?: number;
+};
+
+type Section = {
+    id: string;
+    name: string;
+    sort_order: number;
 };
 
 type QuoteData = {
     id: string;
     title: string;
     description: string | null;
+    scope_description?: string | null;
     status: string;
     total_amount: number;
     valid_until: string | null;
@@ -49,6 +59,7 @@ type TenantInfo = {
 interface QuotePDFProps {
     quote: QuoteData;
     lineItems: LineItem[];
+    sections?: Section[];
     tenant: TenantInfo;
 }
 
@@ -64,49 +75,54 @@ const styles = StyleSheet.create({
         fontSize: 9,
         color: "#1a1a1a",
     },
-    // Header
+    // Header — single consolidated row with logo/company on left, address on right
     header: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginBottom: 30,
+        alignItems: "flex-start",
+        marginBottom: 20,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: "#e5e5e5",
     },
-    logo: { width: 80, height: 36, objectFit: "contain", objectPosition: "left" },
+    logo: { width: 77, height: 55, objectFit: "contain" },
     companyName: { fontSize: 16, fontFamily: "Helvetica-Bold", marginBottom: 2 },
     companyDetail: { fontSize: 8, color: "#666", lineHeight: 1.5 },
     // Quote title block
     titleBlock: {
-        marginBottom: 20,
-        paddingBottom: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: "#e5e5e5",
+        marginBottom: 16,
     },
     quoteTitle: { fontSize: 18, fontFamily: "Helvetica-Bold" },
     quoteSubtitle: { fontSize: 9, color: "#666", marginTop: 2 },
-    // From / To
-    fromToRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 24,
-    },
-    fromToBlock: {
-        width: "45%",
-    },
-    fromToLabel: { fontSize: 7, color: "#999", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
-    fromToName: { fontSize: 10, fontFamily: "Helvetica-Bold", marginBottom: 1 },
-    fromToDetail: { fontSize: 8, color: "#555", lineHeight: 1.5 },
-    // Info row
+    // To + Date row (compact)
     infoRow: {
         flexDirection: "row",
-        gap: 30,
-        marginBottom: 20,
-        paddingBottom: 12,
+        justifyContent: "space-between",
+        marginBottom: 16,
+        paddingBottom: 10,
         borderBottomWidth: 1,
         borderBottomColor: "#e5e5e5",
     },
-    infoBlock: {},
-    infoLabel: { fontSize: 7, color: "#999", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 },
-    infoValue: { fontSize: 9, fontFamily: "Helvetica-Bold" },
-    infoValueLight: { fontSize: 9, color: "#444" },
+    toBlock: {
+        width: "55%",
+    },
+    datesBlock: {
+        width: "40%",
+        alignItems: "flex-end",
+    },
+    infoLabel: { fontSize: 7, color: "#999", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 },
+    infoName: { fontSize: 10, fontFamily: "Helvetica-Bold", marginBottom: 1 },
+    infoDetail: { fontSize: 8, color: "#555", lineHeight: 1.5 },
+    infoValue: { fontSize: 9, color: "#444" },
+    // Scope description
+    scopeBlock: {
+        marginBottom: 14,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: "#e5e5e5",
+    },
+    scopeLabel: { fontSize: 7, color: "#999", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 },
+    scopeText: { fontSize: 8.5, color: "#333", lineHeight: 1.6 },
     // Table
     table: {
         marginBottom: 20,
@@ -131,14 +147,30 @@ const styles = StyleSheet.create({
     },
     th: { fontSize: 7, fontFamily: "Helvetica-Bold", color: "#666", textTransform: "uppercase", letterSpacing: 0.3 },
     td: { fontSize: 8.5 },
+    tdSub: { fontSize: 7.5, color: "#777", marginTop: 1 },
     tdMuted: { fontSize: 8.5, color: "#666" },
     tdBold: { fontSize: 8.5, fontFamily: "Helvetica-Bold" },
-    // Column widths (no trade)
+    // Section header row
+    sectionHeader: {
+        flexDirection: "row",
+        backgroundColor: "#eaeaea",
+        paddingVertical: 5,
+        paddingHorizontal: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: "#ddd",
+        marginTop: 4,
+    },
+    sectionHeaderText: {
+        fontSize: 9,
+        fontFamily: "Helvetica-Bold",
+        color: "#333",
+        textTransform: "uppercase",
+        letterSpacing: 0.3,
+    },
+    // Column widths
     colItem: { flex: 3 },
     colUom: { flex: 0.8 },
-    colQty: { flex: 0.6, textAlign: "right" },
-    colMat: { flex: 1.1, textAlign: "right" },
-    colLab: { flex: 1.1, textAlign: "right" },
+    colQty: { flex: 0.8, textAlign: "right" },
     colTotal: { flex: 1.2, textAlign: "right" },
     // Summary
     summaryContainer: {
@@ -173,8 +205,8 @@ const styles = StyleSheet.create({
     summaryTotalValue: { fontSize: 11, fontFamily: "Helvetica-Bold" },
     // Notes
     notesSection: {
-        marginTop: 24,
-        paddingTop: 12,
+        marginTop: 20,
+        paddingTop: 10,
         borderTopWidth: 1,
         borderTopColor: "#e5e5e5",
     },
@@ -195,7 +227,7 @@ const styles = StyleSheet.create({
     footerText: { fontSize: 7, color: "#999" },
 });
 
-export function QuotePDF({ quote, lineItems, tenant }: QuotePDFProps) {
+export function QuotePDF({ quote, lineItems, sections = [], tenant }: QuotePDFProps) {
     const materialMargin = quote.material_margin ?? 20;
     const labourMargin = quote.labour_margin ?? 20;
     const gstInclusive = quote.gst_inclusive ?? true;
@@ -214,15 +246,40 @@ export function QuotePDF({ quote, lineItems, tenant }: QuotePDFProps) {
 
     const companyName = tenant.company_name || tenant.name;
 
+    // Group items by section for rendering
+    const sortedSections = [...sections].sort((a, b) => a.sort_order - b.sort_order);
+    const unsectionedItems = lineItems
+        .filter(li => !li.section_id)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const hasSections = sortedSections.length > 0;
+
+    const renderLineItem = (li: LineItem, idx: number) => {
+        const lineTotal = li.quantity * (li.material_cost + li.labour_cost);
+        return (
+            <View
+                key={li.id}
+                style={[styles.tableRow, ...(idx % 2 === 1 ? [styles.tableRowAlt] : [])]}
+            >
+                <View style={styles.colItem}>
+                    <Text style={styles.td}>{li.description}</Text>
+                    {li.line_description ? <Text style={styles.tdSub}>{li.line_description}</Text> : null}
+                </View>
+                <Text style={[styles.tdMuted, styles.colUom]}>{li.uom || "—"}</Text>
+                <Text style={[styles.td, styles.colQty]}>{li.quantity}</Text>
+                <Text style={[styles.tdBold, styles.colTotal]}>{fmt(lineTotal)}</Text>
+            </View>
+        );
+    };
+
     return (
         <Document>
             <Page size="A4" style={styles.page}>
-                {/* Header: Company branding */}
+                {/* Header — company branding (consolidated, no separate FROM block) */}
                 <View style={styles.header}>
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 0 }}>
                         {tenant.logo_url && (
                             // eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer Image does not support alt
-                            <Image src={tenant.logo_url} style={[styles.logo, { marginRight: 10 }]} />
+                            <Image src={tenant.logo_url} style={styles.logo} />
                         )}
                         <View>
                             <Text style={styles.companyName}>{companyName}</Text>
@@ -246,67 +303,64 @@ export function QuotePDF({ quote, lineItems, tenant }: QuotePDFProps) {
                     </Text>
                 </View>
 
-                {/* From / To */}
-                <View style={styles.fromToRow}>
-                    <View style={styles.fromToBlock}>
-                        <Text style={styles.fromToLabel}>From</Text>
-                        <Text style={styles.fromToName}>{companyName}</Text>
-                        {tenant.address && <Text style={styles.fromToDetail}>{tenant.address}</Text>}
-                        {tenant.phone && <Text style={styles.fromToDetail}>{tenant.phone}</Text>}
-                        {tenant.email && <Text style={styles.fromToDetail}>{tenant.email}</Text>}
-                        {tenant.abn && <Text style={styles.fromToDetail}>ABN {tenant.abn}</Text>}
-                    </View>
-                    {(quote.contact || quote.company) && (
-                        <View style={styles.fromToBlock}>
-                            <Text style={styles.fromToLabel}>To</Text>
+                {/* To + Dates in one compact row */}
+                <View style={styles.infoRow}>
+                    {(quote.contact || quote.company) ? (
+                        <View style={styles.toBlock}>
+                            <Text style={styles.infoLabel}>To</Text>
                             {quote.contact && (
                                 <>
-                                    <Text style={styles.fromToName}>
+                                    <Text style={styles.infoName}>
                                         {quote.contact.first_name} {quote.contact.last_name}
                                     </Text>
                                     {quote.contact.job_title && (
-                                        <Text style={styles.fromToDetail}>{quote.contact.job_title}</Text>
+                                        <Text style={styles.infoDetail}>{quote.contact.job_title}</Text>
                                     )}
                                 </>
                             )}
                             {quote.company && (
-                                <Text style={styles.fromToDetail}>{quote.company.name}</Text>
+                                <Text style={styles.infoDetail}>{quote.company.name}</Text>
                             )}
                             {quote.contact?.email && (
-                                <Text style={styles.fromToDetail}>{quote.contact.email}</Text>
+                                <Text style={styles.infoDetail}>{quote.contact.email}</Text>
                             )}
                             {quote.contact?.phone && (
-                                <Text style={styles.fromToDetail}>{quote.contact.phone}</Text>
+                                <Text style={styles.infoDetail}>{quote.contact.phone}</Text>
                             )}
                         </View>
-                    )}
-                </View>
+                    ) : <View style={styles.toBlock} />}
 
-                {/* Date / Valid Until */}
-                <View style={styles.infoRow}>
-                    <View style={styles.infoBlock}>
+                    <View style={styles.datesBlock}>
                         <Text style={styles.infoLabel}>Date</Text>
-                        <Text style={styles.infoValueLight}>
+                        <Text style={styles.infoValue}>
                             {new Date(quote.created_at).toLocaleDateString("en-AU", {
                                 day: "numeric",
                                 month: "long",
                                 year: "numeric",
                             })}
                         </Text>
+                        {quote.valid_until && (
+                            <>
+                                <Text style={[styles.infoLabel, { marginTop: 6 }]}>Valid Until</Text>
+                                <Text style={styles.infoValue}>
+                                    {new Date(quote.valid_until).toLocaleDateString("en-AU", {
+                                        day: "numeric",
+                                        month: "long",
+                                        year: "numeric",
+                                    })}
+                                </Text>
+                            </>
+                        )}
                     </View>
-                    {quote.valid_until && (
-                        <View style={styles.infoBlock}>
-                            <Text style={styles.infoLabel}>Valid Until</Text>
-                            <Text style={styles.infoValueLight}>
-                                {new Date(quote.valid_until).toLocaleDateString("en-AU", {
-                                    day: "numeric",
-                                    month: "long",
-                                    year: "numeric",
-                                })}
-                            </Text>
-                        </View>
-                    )}
                 </View>
+
+                {/* Scope description */}
+                {quote.scope_description && (
+                    <View style={styles.scopeBlock}>
+                        <Text style={styles.scopeLabel}>Scope of Work</Text>
+                        <Text style={styles.scopeText}>{quote.scope_description}</Text>
+                    </View>
+                )}
 
                 {/* Line items table */}
                 <View style={styles.table}>
@@ -314,23 +368,24 @@ export function QuotePDF({ quote, lineItems, tenant }: QuotePDFProps) {
                         <Text style={[styles.th, styles.colItem]}>Item</Text>
                         <Text style={[styles.th, styles.colUom]}>UOM</Text>
                         <Text style={[styles.th, styles.colQty]}>Qty</Text>
-                        <Text style={[styles.th, styles.colMat]}>Material</Text>
-                        <Text style={[styles.th, styles.colLab]}>Labour</Text>
                         <Text style={[styles.th, styles.colTotal]}>Total</Text>
                     </View>
-                    {lineItems.map((li, idx) => {
-                        const lineTotal = li.quantity * (li.material_cost + li.labour_cost);
+
+                    {/* Unsectioned items first (backward compat) */}
+                    {unsectionedItems.map((li, idx) => renderLineItem(li, idx))}
+
+                    {/* Sectioned items */}
+                    {sortedSections.map((section) => {
+                        const sectionItems = lineItems
+                            .filter(li => li.section_id === section.id)
+                            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+                        if (sectionItems.length === 0 && !hasSections) return null;
                         return (
-                            <View
-                                key={li.id}
-                                style={[styles.tableRow, ...(idx % 2 === 1 ? [styles.tableRowAlt] : [])]}
-                            >
-                                <Text style={[styles.td, styles.colItem]}>{li.description}</Text>
-                                <Text style={[styles.tdMuted, styles.colUom]}>{li.uom || "—"}</Text>
-                                <Text style={[styles.td, styles.colQty]}>{li.quantity}</Text>
-                                <Text style={[styles.tdMuted, styles.colMat]}>{fmt(li.material_cost)}</Text>
-                                <Text style={[styles.tdMuted, styles.colLab]}>{fmt(li.labour_cost)}</Text>
-                                <Text style={[styles.tdBold, styles.colTotal]}>{fmt(lineTotal)}</Text>
+                            <View key={section.id}>
+                                <View style={styles.sectionHeader}>
+                                    <Text style={styles.sectionHeaderText}>{section.name}</Text>
+                                </View>
+                                {sectionItems.map((li, idx) => renderLineItem(li, idx))}
                             </View>
                         );
                     })}

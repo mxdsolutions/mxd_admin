@@ -48,7 +48,7 @@ export function PlatformAdminShell({ children }: { children: React.ReactNode }) 
                                 href={item.href}
                                 className={cn(
                                     "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                                    isActive ? "bg-white/10 text-white" : "text-white/50 hover:text-white hover:bg-white/[0.07]"
+                                    isActive ? "bg-white/10 text-white" : "text-[#7b819a] hover:text-white hover:bg-white/[0.07]"
                                 )}
                             >
                                 <item.icon className={cn("w-[18px] h-[18px] transition-transform duration-200", !isActive && "group-hover:scale-110")} />
@@ -61,7 +61,7 @@ export function PlatformAdminShell({ children }: { children: React.ReactNode }) 
                 <div className="p-3 border-t border-white/10 space-y-0.5">
                     <Link
                         href="/dashboard"
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#7b819a] hover:text-white hover:bg-white/[0.07] transition-colors"
                     >
                         <ArrowLeftIcon className="w-[18px] h-[18px]" />
                         Back to Dashboard
@@ -77,7 +77,7 @@ export function PlatformAdminShell({ children }: { children: React.ReactNode }) 
                     </Link>
                     <button
                         onClick={() => setSignOutOpen(true)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors w-full"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#7b819a] hover:text-white hover:bg-white/[0.07] transition-colors w-full"
                     >
                         <ArrowRightStartOnRectangleIcon className="w-[18px] h-[18px]" />
                         Sign out
@@ -124,7 +124,7 @@ export function PlatformAdminShell({ children }: { children: React.ReactNode }) 
                                             onClick={() => setMobileMenuOpen(false)}
                                             className={cn(
                                                 "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                                                isActive ? "bg-white/10 text-white" : "text-white/50 hover:text-white hover:bg-white/[0.07]"
+                                                isActive ? "bg-white/10 text-white" : "text-[#7b819a] hover:text-white hover:bg-white/[0.07]"
                                             )}
                                         >
                                             <item.icon className={cn("w-[18px] h-[18px] transition-transform duration-200", !isActive && "group-hover:scale-110")} />
@@ -135,7 +135,7 @@ export function PlatformAdminShell({ children }: { children: React.ReactNode }) 
                             </nav>
 
                             <div className="p-3 border-t border-white/10 space-y-0.5">
-                                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors w-full">
+                                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#7b819a] hover:text-white hover:bg-white/[0.07] transition-colors w-full">
                                     <ArrowLeftIcon className="w-[18px] h-[18px]" />
                                     Back to Dashboard
                                 </Link>
@@ -148,7 +148,7 @@ export function PlatformAdminShell({ children }: { children: React.ReactNode }) 
                                         <p className="text-[11px] text-white/40 truncate">{userEmail}</p>
                                     </div>
                                 </Link>
-                                <button onClick={() => { setMobileMenuOpen(false); setSignOutOpen(true); }} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors w-full">
+                                <button onClick={() => { setMobileMenuOpen(false); setSignOutOpen(true); }} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#7b819a] hover:text-white hover:bg-white/[0.07] transition-colors w-full">
                                     <ArrowRightStartOnRectangleIcon className="w-[18px] h-[18px]" />
                                     Sign out
                                 </button>

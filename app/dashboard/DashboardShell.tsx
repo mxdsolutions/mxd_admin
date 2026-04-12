@@ -41,7 +41,7 @@ function PageTitle({ companyName }: { companyName?: string | null }) {
 function SidebarNav({ items, pathname, onNavigate }: { items: NavItem[]; pathname: string; onNavigate?: () => void }) {
     const linkClass = (isActive: boolean) => cn(
         "group flex items-center gap-3 xl:gap-4 px-3 py-2 xl:py-3 rounded-lg font-display text-2xl md:text-base xl:text-xl font-bold uppercase transition-all duration-200",
-        isActive ? "bg-white/10 text-white" : "text-white/50 hover:text-white hover:bg-white/[0.07]"
+        isActive ? "bg-white/10 text-white" : "text-[#7b819a] hover:text-white hover:bg-white/[0.07]"
     );
 
     return (
@@ -130,7 +130,7 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                             <p className="text-[11px] xl:text-[15px] text-white/40 truncate">{userEmail}</p>
                         </div>
                     </Link>
-                    <button onClick={() => setSignOutOpen(true)} className="flex items-center gap-3 xl:gap-4 px-3 py-2 xl:py-3 rounded-lg font-display text-base xl:text-xl font-bold uppercase text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors w-full">
+                    <button onClick={() => setSignOutOpen(true)} className="flex items-center gap-3 xl:gap-4 px-3 py-2 xl:py-3 rounded-lg font-display text-base xl:text-xl font-bold uppercase text-[#7b819a] hover:text-white hover:bg-white/[0.07] transition-colors w-full">
                         <ArrowRightStartOnRectangleIcon className="w-5 h-5 xl:w-6 xl:h-6 shrink-0" />
                         Sign out
                     </button>
@@ -185,7 +185,7 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                                         <p className="text-[15px] text-white/40 truncate">{userEmail}</p>
                                     </div>
                                 </Link>
-                                <button onClick={() => { setMobileMenuOpen(false); setSignOutOpen(true); }} className="flex items-center gap-4 px-3 py-3 rounded-lg font-display text-lg font-bold text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors w-full">
+                                <button onClick={() => { setMobileMenuOpen(false); setSignOutOpen(true); }} className="flex items-center gap-4 px-3 py-3 rounded-lg font-display text-lg font-bold text-[#7b819a] hover:text-white hover:bg-white/[0.07] transition-colors w-full">
                                     <ArrowRightStartOnRectangleIcon className="w-6 h-6 shrink-0" />
                                     Sign out
                                 </button>
