@@ -109,7 +109,11 @@ function EditableValue({
     // Non-editable fields
     if (!field.dbColumn || !onSave) {
         return (
-            <span className={cn("text-[15px] text-foreground min-w-0 truncate", !field.label ? "text-left" : "text-right")}>
+            <span className={cn(
+                "text-[15px] text-foreground min-w-0",
+                field.type === "textarea" ? "whitespace-pre-wrap text-left w-full" : "truncate",
+                field.type !== "textarea" && (!field.label ? "text-left" : "text-right"),
+            )}>
                 {field.value || <span className="text-muted-foreground/40">&mdash;</span>}
             </span>
         );
@@ -150,13 +154,15 @@ function EditableValue({
         );
     }
 
+    const isTextarea = field.type === "textarea";
     return (
         <button
             type="button"
             onClick={() => setEditing(true)}
             className={cn(
-                "text-[15px] text-foreground min-w-0 truncate hover:bg-muted/50 rounded-md px-1.5 py-0.5 transition-colors cursor-text",
-                !field.label ? "text-left -ml-1.5" : "text-right -mr-1.5",
+                "text-[15px] text-foreground min-w-0 hover:bg-muted/50 rounded-md px-1.5 py-0.5 transition-colors cursor-text",
+                isTextarea ? "whitespace-pre-wrap text-left w-full -ml-1.5" : "truncate",
+                !isTextarea && (!field.label ? "text-left -ml-1.5" : "text-right -mr-1.5"),
                 saving && "opacity-50"
             )}
         >
