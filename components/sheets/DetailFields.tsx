@@ -169,10 +169,12 @@ export function DetailFields({ fields, className, onSave }: DetailFieldsProps) {
     return (
         <div className={cn("space-y-3", className)}>
             {fields.map((field, i) => (
-                <div key={i} className="flex items-start justify-between gap-4">
-                    <span className="text-sm font-medium text-muted-foreground shrink-0 pt-1">
-                        {field.label}
-                    </span>
+                <div key={i} className={field.label ? "flex items-start justify-between gap-4" : ""}>
+                    {field.label && (
+                        <span className="text-sm font-medium text-muted-foreground shrink-0 pt-1">
+                            {field.label}
+                        </span>
+                    )}
                     <EditableValue field={field} onSave={onSave} />
                 </div>
             ))}

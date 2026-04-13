@@ -400,9 +400,9 @@ function RelatedTab({
     onUpdate?: () => void;
     open: boolean;
 }) {
-    const { data: contactsData, mutate: mutateContacts } = useContactOptions(open);
-    const { data: companiesData, mutate: mutateCompanies } = useCompanyOptions(open);
-    const { data: jobsData, mutate: mutateJobs } = useJobOptions(open);
+    const { data: contactsData, isLoading: contactsLoading, mutate: mutateContacts } = useContactOptions(open);
+    const { data: companiesData, isLoading: companiesLoading, mutate: mutateCompanies } = useCompanyOptions(open);
+    const { data: jobsData, isLoading: jobsLoading, mutate: mutateJobs } = useJobOptions(open);
 
     const contactOptions: EntityOption[] = useMemo(
         () => (contactsData?.items ?? []).map((c: ContactOption) => ({
@@ -521,6 +521,7 @@ function RelatedTab({
                     placeholder="Search or create job..."
                     entityType="job"
                     onCreated={() => mutateJobs()}
+                    loading={jobsLoading}
                 />
             </div>
 
@@ -533,6 +534,7 @@ function RelatedTab({
                     placeholder="Search or create contact..."
                     entityType="contact"
                     onCreated={() => mutateContacts()}
+                    loading={contactsLoading}
                 />
             </div>
 
@@ -545,6 +547,7 @@ function RelatedTab({
                     placeholder="Search or create company..."
                     entityType="company"
                     onCreated={() => mutateCompanies()}
+                    loading={companiesLoading}
                 />
             </div>
         </div>

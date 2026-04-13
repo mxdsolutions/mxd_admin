@@ -40,6 +40,8 @@ interface EntitySearchDropdownProps {
     className?: string;
     /** Disable interaction */
     disabled?: boolean;
+    /** Show loading state — displays "Loading..." as placeholder */
+    loading?: boolean;
 }
 
 export function EntitySearchDropdown({
@@ -51,6 +53,7 @@ export function EntitySearchDropdown({
     onCreated,
     className,
     disabled,
+    loading,
 }: EntitySearchDropdownProps) {
     const [search, setSearch] = useState("");
     const [showDropdown, setShowDropdown] = useState(false);
@@ -87,7 +90,7 @@ export function EntitySearchDropdown({
         <>
             <div className={cn("relative", className)}>
                 <Input
-                    placeholder={placeholder}
+                    placeholder={loading ? "Loading..." : placeholder}
                     value={selected ? selected.label : search}
                     onChange={(e) => {
                         setSearch(e.target.value);
@@ -97,7 +100,7 @@ export function EntitySearchDropdown({
                     onFocus={() => setShowDropdown(true)}
                     onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
                     className="rounded-xl"
-                    disabled={disabled}
+                    disabled={disabled || loading}
                 />
                 {showDropdown && !selected && (
                     <div className="absolute z-50 top-full mt-1 w-full bg-background border border-border rounded-xl shadow-lg flex flex-col max-h-56">
