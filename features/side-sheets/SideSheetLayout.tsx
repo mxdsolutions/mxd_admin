@@ -28,6 +28,8 @@ interface SideSheetLayoutProps {
     };
     actions?: ReactNode;
     footer?: ReactNode;
+    /** Extra classes for the footer wrapper — handy for `md:hidden` etc. */
+    footerClassName?: string;
     contentClassName?: string;
     tabs: Tab[];
     activeTab: string;
@@ -46,6 +48,7 @@ export function SideSheetLayout({
     badge,
     actions,
     footer,
+    footerClassName,
     contentClassName,
     tabs,
     activeTab,
@@ -119,7 +122,7 @@ export function SideSheetLayout({
                     </div>
 
                     {footer && (
-                        <div className="p-4 border-t border-border bg-background shrink-0">
+                        <div className={cn("p-4 border-t border-border bg-background shrink-0", footerClassName)}>
                             {footer}
                         </div>
                     )}

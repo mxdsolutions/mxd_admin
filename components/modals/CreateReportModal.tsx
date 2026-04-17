@@ -123,6 +123,11 @@ export function CreateReportModal({ open, onOpenChange, onCreated, defaultValues
             onCreated?.(data.item);
             reset();
             onOpenChange(false);
+            // Open the wizard in a new tab so the user keeps their place in
+            // whatever list/job page triggered the modal.
+            if (data.item?.id) {
+                window.open(`/report/${data.item.id}`, "_blank", "noopener,noreferrer");
+            }
         } catch {
             toast.error("Failed to create report");
         } finally {

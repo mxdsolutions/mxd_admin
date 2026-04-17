@@ -239,6 +239,30 @@ export function ReportSideSheet({ report, open, onOpenChange, onUpdate }: Report
         { id: "activity", label: "Activity" },
     ];
 
+    // Shared between header (desktop) and footer (mobile) so the buttons stay
+    // in sync — just different layouts.
+    const actionButtons = data.template_id ? (
+        <>
+            <Button asChild variant="outline" size="sm" className="rounded-lg">
+                <a href={`/report/${data.id}`} target="_blank" rel="noopener noreferrer">
+                    <DocumentTextIcon className="w-4 h-4 mr-2" />
+                    Open Report Form
+                </a>
+            </Button>
+            {data.status === "submitted" && (
+                <Button
+                    size="sm"
+                    className="rounded-lg"
+                    onClick={handleDownloadPDF}
+                    disabled={downloading}
+                >
+                    <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                    {downloading ? "Generating..." : "View PDF"}
+                </Button>
+            )}
+        </>
+    ) : null;
+
     return (
         <SideSheetLayout
             open={open}
@@ -256,28 +280,16 @@ export function ReportSideSheet({ report, open, onOpenChange, onUpdate }: Report
             activeTab={activeTab}
             onTabChange={setActiveTab}
             actions={
-                data.template_id ? (
-                    <>
-                        <Button asChild variant="outline" size="sm" className="rounded-lg">
-                            <a href={`/report/${data.id}`} target="_blank" rel="noopener noreferrer">
-                                <DocumentTextIcon className="w-4 h-4 mr-2" />
-                                Open Report Form
-                            </a>
-                        </Button>
-                        {data.status === "submitted" && (
-                            <Button
-                                size="sm"
-                                className="rounded-lg"
-                                onClick={handleDownloadPDF}
-                                disabled={downloading}
-                            >
-                                <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
-                                {downloading ? "Generating..." : "View PDF"}
-                            </Button>
-                        )}
-                    </>
+                actionButtons ? (
+                    <div className="hidden md:flex items-center gap-2">{actionButtons}</div>
                 ) : undefined
             }
+            footer={
+                actionButtons ? (
+                    <div className="flex flex-col gap-2 [&>*]:w-full">{actionButtons}</div>
+                ) : undefined
+            }
+            footerClassName="md:hidden"
         >
             {activeTab === "details" && (
                 <div className="space-y-4">

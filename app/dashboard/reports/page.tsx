@@ -7,7 +7,9 @@ import { DashboardControls } from "@/components/dashboard/DashboardPage";
 import { usePageTitle } from "@/lib/page-title-context";
 import { useMobileHeaderAction } from "@/lib/mobile-header-action-context";
 import { MobileFilters } from "@/components/dashboard/MobileFilters";
+import { JobSearchSelect } from "@/components/ui/job-search-select";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
+import { REPORT_STATUS_CONFIG } from "@/lib/status-config";
 import {
     tableBase,
     tableHead,
@@ -63,6 +65,8 @@ export default function ReportsPage() {
     const router = useRouter();
     const [search, setSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState<string>("All");
+    const [statusFilter, setStatusFilter] = useState<string>("All");
+    const [jobFilter, setJobFilter] = useState<string>("");
     const [createOpen, setCreateOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     useMobileHeaderAction(useCallback(() => setCreateOpen(true), []));
@@ -86,7 +90,9 @@ export default function ReportsPage() {
     const reports = allReports.filter(r => {
         const matchesSearch = !search || r.title.toLowerCase().includes(search.toLowerCase());
         const matchesType = typeFilter === "All" || r.type === typeFilter;
-        return matchesSearch && matchesType;
+        const matchesStatus = statusFilter === "All" || r.status === statusFilter;
+        const matchesJob = !jobFilter || r.job?.id === jobFilter;
+        return matchesSearch && matchesType && matchesStatus && matchesJob;
     });
 
     return (
@@ -117,6 +123,23 @@ export default function ReportsPage() {
                                     ))}
                                 </SelectContent>
                             </Select>
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="w-[150px]">
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All Statuses</SelectItem>
+                                    {Object.entries(REPORT_STATUS_CONFIG).map(([key, v]) => (
+                                        <SelectItem key={key} value={key}>{v.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <JobSearchSelect
+                                value={jobFilter}
+                                onChange={setJobFilter}
+                                placeholder="Filter by job..."
+                                className="w-full md:w-[220px]"
+                            />
                         </MobileFilters>
                     </div>
                     <Button className="px-6 shrink-0 hidden md:inline-flex" onClick={() => setCreateOpen(true)}>
@@ -191,11 +214,7 @@ export default function ReportsPage() {
         <CreateReportModal
             open={createOpen}
             onOpenChange={setCreateOpen}
-            onCreated={async (item) => {
-                const result = await mutate();
-                const found = (result?.items || []).find((r: Report) => r.id === item.id);
-                setSelectedReport(found || null);
-            }}
+            onCreated={() => { mutate(); }}
         />
 
         <ReportSideSheet
