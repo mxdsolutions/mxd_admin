@@ -8,7 +8,21 @@ const selectTenantSchema = z.object({
     xero_tenant_name: z.string().min(1, "Xero tenant name is required"),
 });
 
-export const POST = withAuth(async (request, { supabase, tenantId }) => {
+export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
+    const { data: membership } = await supabase
+        .from("tenant_memberships")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("tenant_id", tenantId)
+        .single();
+
+    if (!membership || !["owner", "admin"].includes(membership.role)) {
+        return NextResponse.json(
+            { error: "Only owners and admins can configure Xero" },
+            { status: 403 }
+        );
+    }
+
     const body = await request.json();
     const validation = selectTenantSchema.safeParse(body);
     if (!validation.success) return validationError(validation.error);

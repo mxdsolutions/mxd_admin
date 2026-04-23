@@ -3,6 +3,20 @@ import { withAuth } from "@/app/api/_lib/handler";
 import { pullInvoicesFromXero } from "@/lib/xero-sync";
 
 export const POST = withAuth(async (_request, { supabase, user, tenantId }) => {
+    const { data: membership } = await supabase
+        .from("tenant_memberships")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("tenant_id", tenantId)
+        .single();
+
+    if (!membership || !["owner", "admin", "manager"].includes(membership.role)) {
+        return NextResponse.json(
+            { error: "You do not have permission to sync Xero" },
+            { status: 403 }
+        );
+    }
+
     const { data: connection } = await supabase
         .from("xero_connections")
         .select("last_sync_at, status")

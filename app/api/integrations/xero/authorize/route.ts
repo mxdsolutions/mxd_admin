@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { getTenantId } from "@/lib/tenant";
 import { buildXeroAuthUrl } from "@/lib/xero";
 import { v4 as uuid } from "uuid";
 
@@ -12,6 +13,21 @@ export async function GET() {
     } = await supabase.auth.getUser();
     if (error || !user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const tenantId = await getTenantId();
+    const { data: membership } = await supabase
+        .from("tenant_memberships")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("tenant_id", tenantId)
+        .single();
+
+    if (!membership || !["owner", "admin"].includes(membership.role)) {
+        return NextResponse.json(
+            { error: "Only owners and admins can connect Xero" },
+            { status: 403 }
+        );
     }
 
     const state = uuid();

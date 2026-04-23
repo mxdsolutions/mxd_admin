@@ -17,7 +17,21 @@ export const GET = withAuth(async (_request, { supabase, tenantId }) => {
     return NextResponse.json({ connected: true, connection });
 });
 
-export const DELETE = withAuth(async (_request, { supabase, tenantId }) => {
+export const DELETE = withAuth(async (_request, { supabase, user, tenantId }) => {
+    const { data: membership } = await supabase
+        .from("tenant_memberships")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("tenant_id", tenantId)
+        .single();
+
+    if (!membership || !["owner", "admin"].includes(membership.role)) {
+        return NextResponse.json(
+            { error: "Only owners and admins can disconnect Xero" },
+            { status: 403 }
+        );
+    }
+
     // Delete sync mappings first
     await supabase
         .from("xero_sync_mappings")
