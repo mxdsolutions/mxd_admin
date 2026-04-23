@@ -1,21 +1,17 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/app/api/_lib/handler";
+import { requirePermission } from "@/app/api/_lib/permissions";
 import { pullInvoicesFromXero } from "@/lib/xero-sync";
 
 export const POST = withAuth(async (_request, { supabase, user, tenantId }) => {
-    const { data: membership } = await supabase
-        .from("tenant_memberships")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("tenant_id", tenantId)
-        .single();
-
-    if (!membership || !["owner", "admin", "manager"].includes(membership.role)) {
-        return NextResponse.json(
-            { error: "You do not have permission to sync Xero" },
-            { status: 403 }
-        );
-    }
+    const denied = await requirePermission(
+        supabase,
+        user.id,
+        tenantId,
+        "integrations.xero.sync",
+        "write"
+    );
+    if (denied) return denied;
 
     const { data: connection } = await supabase
         .from("xero_connections")

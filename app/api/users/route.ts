@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/app/api/_lib/handler";
+import { requirePermission } from "@/app/api/_lib/permissions";
 import { serverError } from "@/app/api/_lib/errors";
 
 const VALID_ROLES = ["owner", "admin", "manager", "member", "viewer"];
@@ -52,7 +53,16 @@ export const PATCH = withAuth(async (request, { supabase, user, tenantId }) => {
         return NextResponse.json({ error: "Valid user_id and role are required" }, { status: 400 });
     }
 
-    // Check that the requesting user is an owner or admin
+    const denied = await requirePermission(
+        supabase,
+        user.id,
+        tenantId,
+        "settings.users",
+        "write"
+    );
+    if (denied) return denied;
+
+    // Fetch caller's role for the owner-assignment edge case below.
     const { data: callerMembership } = await supabase
         .from("tenant_memberships")
         .select("role")
@@ -60,17 +70,13 @@ export const PATCH = withAuth(async (request, { supabase, user, tenantId }) => {
         .eq("tenant_id", tenantId)
         .single();
 
-    if (!callerMembership || !["owner", "admin"].includes(callerMembership.role)) {
-        return NextResponse.json({ error: "Only owners and admins can change roles" }, { status: 403 });
-    }
-
     // Prevent changing your own role
     if (user_id === user.id) {
         return NextResponse.json({ error: "You cannot change your own role" }, { status: 400 });
     }
 
     // Prevent non-owners from assigning the owner role
-    if (role === "owner" && callerMembership.role !== "owner") {
+    if (role === "owner" && callerMembership?.role !== "owner") {
         return NextResponse.json({ error: "Only owners can assign the owner role" }, { status: 403 });
     }
 

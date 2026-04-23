@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/app/api/_lib/handler";
+import { requirePermission } from "@/app/api/_lib/permissions";
 import { z } from "zod";
 import { validationError } from "@/app/api/_lib/errors";
 
@@ -9,19 +10,14 @@ const selectTenantSchema = z.object({
 });
 
 export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
-    const { data: membership } = await supabase
-        .from("tenant_memberships")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("tenant_id", tenantId)
-        .single();
-
-    if (!membership || !["owner", "admin"].includes(membership.role)) {
-        return NextResponse.json(
-            { error: "Only owners and admins can configure Xero" },
-            { status: 403 }
-        );
-    }
+    const denied = await requirePermission(
+        supabase,
+        user.id,
+        tenantId,
+        "integrations.xero.connect",
+        "write"
+    );
+    if (denied) return denied;
 
     const body = await request.json();
     const validation = selectTenantSchema.safeParse(body);

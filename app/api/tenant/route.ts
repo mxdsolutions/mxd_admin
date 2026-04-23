@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/app/api/_lib/handler";
+import { requirePermission } from "@/app/api/_lib/permissions";
 import { serverError, notFoundError } from "@/app/api/_lib/errors";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -16,17 +17,14 @@ export const GET = withAuth(async (_request, { supabase, tenantId }) => {
 });
 
 export const PATCH = withAuth(async (request, { supabase, user, tenantId }) => {
-    // Only owners and admins can update tenant settings
-    const { data: membership } = await supabase
-        .from("tenant_memberships")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("tenant_id", tenantId)
-        .single();
-
-    if (!membership || !["owner", "admin"].includes(membership.role)) {
-        return NextResponse.json({ error: "Only owners and admins can update company settings" }, { status: 403 });
-    }
+    const denied = await requirePermission(
+        supabase,
+        user.id,
+        tenantId,
+        "settings.company",
+        "write"
+    );
+    if (denied) return denied;
 
     const body = await request.json();
 
