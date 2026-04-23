@@ -4,6 +4,7 @@ import {
     DEFAULT_JOB_STATUSES,
 } from "@/lib/status-config";
 import { DEFAULT_MODULES } from "@/lib/module-config";
+import { DEFAULT_PERMISSIONS_BY_ROLE } from "@/lib/permissions";
 
 export type TenantBranding = {
     id: string;
@@ -126,53 +127,15 @@ export async function seedDefaultRoles(tenantId: string) {
     const admin = await createAdminClient();
 
     const defaultRoles = [
-        {
-            name: "Owner", slug: "owner", is_system: true,
-            permissions: {
-                crm: { read: true, write: true, delete: true },
-                operations: { read: true, write: true, delete: true },
-                settings: { read: true, write: true, delete: true },
-                "settings.users": { read: true, write: true, delete: true },
-                "settings.branding": { read: true, write: true },
-            },
-        },
-        {
-            name: "Admin", slug: "admin", is_system: true,
-            permissions: {
-                crm: { read: true, write: true, delete: true },
-                operations: { read: true, write: true, delete: true },
-                settings: { read: true, write: true },
-                "settings.users": { read: true, write: true, delete: true },
-                "settings.branding": { read: true },
-            },
-        },
-        {
-            name: "Manager", slug: "manager", is_system: true,
-            permissions: {
-                crm: { read: true, write: true, delete: true },
-                operations: { read: true, write: true, delete: true },
-                settings: { read: true },
-                "settings.users": { read: true },
-            },
-        },
-        {
-            name: "Member", slug: "member", is_system: true,
-            permissions: {
-                crm: { read: true, write: true },
-                operations: { read: true, write: true },
-            },
-        },
-        {
-            name: "Viewer", slug: "viewer", is_system: true,
-            permissions: {
-                crm: { read: true },
-                operations: { read: true },
-            },
-        },
+        { name: "Owner", slug: "owner", permissions: DEFAULT_PERMISSIONS_BY_ROLE.owner },
+        { name: "Admin", slug: "admin", permissions: DEFAULT_PERMISSIONS_BY_ROLE.admin },
+        { name: "Manager", slug: "manager", permissions: DEFAULT_PERMISSIONS_BY_ROLE.manager },
+        { name: "Member", slug: "member", permissions: DEFAULT_PERMISSIONS_BY_ROLE.member },
+        { name: "Viewer", slug: "viewer", permissions: DEFAULT_PERMISSIONS_BY_ROLE.viewer },
     ];
 
     await admin.from("tenant_roles").insert(
-        defaultRoles.map((r) => ({ tenant_id: tenantId, ...r }))
+        defaultRoles.map((r) => ({ tenant_id: tenantId, is_system: true, ...r }))
     );
 }
 

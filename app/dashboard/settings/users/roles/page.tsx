@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useTenant } from "@/lib/tenant-context";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { RESOURCES, RESOURCE_GROUPS, type PermissionAction } from "@/lib/permissions";
 
 type Role = {
     id: string;
@@ -14,15 +15,7 @@ type Role = {
     permissions: Record<string, { read?: boolean; write?: boolean; delete?: boolean }>;
 };
 
-const PERMISSION_GROUPS = [
-    { key: "crm", label: "CRM" },
-    { key: "operations", label: "Operations" },
-    { key: "settings", label: "Settings" },
-    { key: "settings.users", label: "User Management" },
-    { key: "settings.branding", label: "Branding" },
-];
-
-const ACTIONS = ["read", "write", "delete"] as const;
+const ACTIONS: readonly PermissionAction[] = ["read", "write", "delete"] as const;
 
 export default function RolesPage() {
     const tenant = useTenant();
@@ -125,24 +118,45 @@ export default function RolesPage() {
                             <h3 className="text-sm font-semibold">{selectedRole.name} Permissions</h3>
                         </div>
                         <div className="divide-y divide-border/50">
-                            {PERMISSION_GROUPS.map((group) => (
-                                <div key={group.key} className="flex items-center px-4 py-3">
-                                    <span className="text-sm font-medium w-40 shrink-0">{group.label}</span>
-                                    <div className="flex gap-6">
-                                        {ACTIONS.map((action) => (
-                                            <label key={action} className="flex items-center gap-1.5 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={!!selectedRole.permissions[group.key]?.[action]}
-                                                    onChange={() => togglePermission(group.key, action)}
-                                                    className="rounded border-border"
-                                                />
-                                                <span className="text-xs text-muted-foreground capitalize">{action}</span>
-                                            </label>
+                            {RESOURCE_GROUPS.map((groupName) => {
+                                const resourcesInGroup = RESOURCES.filter((r) => r.group === groupName);
+                                if (resourcesInGroup.length === 0) return null;
+                                return (
+                                    <div key={groupName}>
+                                        <div className="px-4 py-2 bg-muted/20 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                            {groupName}
+                                        </div>
+                                        {resourcesInGroup.map((resource) => (
+                                            <div key={resource.key} className="flex items-center px-4 py-3 border-t border-border/40">
+                                                <span className="text-sm font-medium w-56 shrink-0">{resource.label}</span>
+                                                <div className="flex gap-6">
+                                                    {ACTIONS.map((action) => {
+                                                        const supported = resource.actions.includes(action);
+                                                        return (
+                                                            <label
+                                                                key={action}
+                                                                className={cn(
+                                                                    "flex items-center gap-1.5",
+                                                                    supported ? "cursor-pointer" : "opacity-30 cursor-not-allowed"
+                                                                )}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    disabled={!supported}
+                                                                    checked={!!selectedRole.permissions[resource.key]?.[action]}
+                                                                    onChange={() => togglePermission(resource.key, action)}
+                                                                    className="rounded border-border"
+                                                                />
+                                                                <span className="text-xs text-muted-foreground capitalize">{action}</span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
                                         ))}
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                         <div className="px-4 py-3 border-t border-border bg-muted/10">
                             <button
