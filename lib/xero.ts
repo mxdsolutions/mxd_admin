@@ -6,7 +6,7 @@ const XERO_API_URL = "https://api.xero.com/api.xro/2.0";
 const XERO_CONNECTIONS_URL = "https://api.xero.com/connections";
 
 const SCOPES =
-    "openid profile email offline_access accounting.contacts accounting.transactions";
+    "openid profile email offline_access accounting.contacts accounting.invoices";
 
 export function buildXeroAuthUrl(state: string): string {
     const params = new URLSearchParams({

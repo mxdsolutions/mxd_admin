@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
                         refresh_token: tokens.refresh_token,
                         token_expires_at: expiresAt,
                         scopes:
-                            "openid profile email offline_access accounting.contacts accounting.transactions",
+                            "openid profile email offline_access accounting.contacts accounting.invoices",
                         status: "active",
                         updated_at: new Date().toISOString(),
                     },
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
                     refresh_token: tokens.refresh_token,
                     token_expires_at: expiresAt,
                     scopes:
-                        "openid profile email offline_access accounting.contacts accounting.transactions",
+                        "openid profile email offline_access accounting.contacts accounting.invoices",
                     status: "pending_org_selection",
                     updated_at: new Date().toISOString(),
                 },
