@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -75,7 +75,8 @@ export function CreateMaterialModal({ open, onOpenChange, onCreated }: CreateMat
                     <DialogTitle>New Material</DialogTitle>
                     <DialogDescription>Add a new pricing item to the materials list.</DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                    <DialogBody className="space-y-4 pb-6">
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium text-muted-foreground">Description *</label>
                         <Input
@@ -137,14 +138,15 @@ export function CreateMaterialModal({ open, onOpenChange, onCreated }: CreateMat
                         </div>
                     )}
 
-                    <div className="flex justify-end gap-2 pt-2">
+                    </DialogBody>
+                    <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                             Cancel
                         </Button>
                         <Button type="submit" disabled={!item.trim() || saving}>
                             {saving ? "Creating..." : "Create Material"}
                         </Button>
-                    </div>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

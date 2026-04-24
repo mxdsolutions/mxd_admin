@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -77,13 +76,18 @@ function AuthContent() {
   };
 
   return (
-    <div className="min-h-screen w-full flex">
+    <div className="h-dvh w-full flex overflow-hidden">
       {/* Left Panel - Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-background">
+      <div className="flex-1 flex items-center justify-center p-8 bg-background overflow-y-auto">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center mb-8 cursor-default">
-              <Logo size="large" />
+            <div className="inline-flex flex-col items-center justify-center mb-8 cursor-default">
+              <span className="font-paladins text-6xl tracking-[0.08em] text-foreground leading-none">
+                THOR
+              </span>
+              <span className="mt-2 text-sm text-muted-foreground tracking-wide">
+                Tradie OS: Construction Amplified
+              </span>
             </div>
             <h2 className="text-3xl font-bold mb-2">
               Welcome back
@@ -148,7 +152,7 @@ function AuthContent() {
               Manage jobs, projects<br />and contacts.
             </h3>
             <p className="text-lg text-white/60">
-              The MXD admin dashboard lets you oversee your CRM, projects and users so your business runs smoothly.
+              The THOR admin dashboard lets you oversee your CRM, projects and users so your business runs smoothly.
             </p>
           </div>
 
@@ -177,7 +181,7 @@ function AuthContent() {
 
 export default function Home() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-muted-foreground animate-pulse">Loading authentication...</div>}>
+    <Suspense fallback={<div className="h-dvh flex items-center justify-center text-muted-foreground animate-pulse">Loading authentication...</div>}>
       <AuthContent />
     </Suspense>
   );

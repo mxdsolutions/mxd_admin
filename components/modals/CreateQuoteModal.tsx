@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -227,15 +227,16 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
     return (
         <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[900px] h-[90vh] flex flex-col overflow-hidden">
+            <DialogContent className="sm:max-w-[900px] h-[90vh]">
                 <DialogHeader>
                     <DialogTitle>New Quote</DialogTitle>
                     <DialogDescription>Build a quote from the pricing matrix.</DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-                    {/* Non-scrollable top section */}
-                    <div className="px-1 space-y-4 pb-4">
+                    <DialogBody className="space-y-4 pb-6">
+                    {/* Header fields + scope + pricing */}
+                    <div className="space-y-4">
                         {/* Header fields: Contact, Valid Until */}
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
@@ -348,8 +349,8 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                         </div>
                     </div>
 
-                    {/* Scrollable content */}
-                    <div className="flex-1 overflow-y-auto min-h-0 px-1 space-y-4">
+                    {/* Sections + summary */}
+                    <div className="space-y-4">
                         {/* Sections with line items */}
                         {sections.length === 0 && (
                             <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-muted-foreground text-sm">
@@ -546,14 +547,12 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                         </div>
                     </div>
 
-                    {/* Footer */}
-                    <div className="pt-3 mt-1 border-t border-border px-1 shrink-0 space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">
-                                {sections.length} section{sections.length !== 1 ? "s" : ""} · {totalItemCount} item{totalItemCount !== 1 ? "s" : ""}
-                            </span>
-                            {totalItemCount > 0 && <span className="font-medium text-foreground">{formatCurrency(totals.grandTotal)}</span>}
-                        </div>
+                    </DialogBody>
+                    <DialogFooter className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="text-sm text-muted-foreground">
+                            {sections.length} section{sections.length !== 1 ? "s" : ""} · {totalItemCount} item{totalItemCount !== 1 ? "s" : ""}
+                            {totalItemCount > 0 && <span className="ml-2 font-medium text-foreground">{formatCurrency(totals.grandTotal)}</span>}
+                        </span>
                         <div className="flex gap-2">
                             <Button type="button" variant="ghost" className="flex-1 sm:flex-none" onClick={() => onOpenChange(false)}>
                                 Cancel
@@ -562,7 +561,7 @@ export function CreateQuoteModal({ open, onOpenChange, onCreated, defaultValues 
                                 {saving ? "Creating..." : "Create Quote"}
                             </Button>
                         </div>
-                    </div>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

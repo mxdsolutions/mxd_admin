@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -117,13 +117,13 @@ export function CreateInvoiceModal({ open, onOpenChange, onCreated, defaultValue
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Create Invoice</DialogTitle>
                     <DialogDescription>Create a new sales invoice.</DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 pt-2">
+                <DialogBody className="space-y-4 pb-6">
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-sm font-medium text-muted-foreground mb-1 block">Reference</label>
@@ -225,18 +225,18 @@ export function CreateInvoiceModal({ open, onOpenChange, onCreated, defaultValue
                         />
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t">
-                        <h3 className="text-lg font-bold">
-                            Total: {new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(total)}
-                        </h3>
-                        <div className="flex gap-2">
-                            <Button variant="outline" className="" onClick={() => onOpenChange(false)}>Cancel</Button>
-                            <Button className="" onClick={handleSubmit} disabled={saving}>
-                                {saving ? "Creating..." : "Create Invoice"}
-                            </Button>
-                        </div>
+                </DialogBody>
+                <DialogFooter className="justify-between flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+                    <h3 className="text-lg font-bold">
+                        Total: {new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(total)}
+                    </h3>
+                    <div className="flex gap-2">
+                        <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => onOpenChange(false)}>Cancel</Button>
+                        <Button className="flex-1 sm:flex-none" onClick={handleSubmit} disabled={saving}>
+                            {saving ? "Creating..." : "Create Invoice"}
+                        </Button>
                     </div>
-                </div>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

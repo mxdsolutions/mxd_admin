@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, lazy, Suspense } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { IconX as XMarkIcon, IconPlus as PlusIcon } from "@tabler/icons-react";
@@ -179,7 +179,8 @@ export function CreateJobModal({ open, onOpenChange, onCreated, defaultValues }:
                         <DialogTitle>New Job</DialogTitle>
                         <DialogDescription>Create a new service job.</DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                    <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                        <DialogBody className="space-y-4 pb-6">
                         {/* Job ID */}
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium text-muted-foreground">Job ID</label>
@@ -387,14 +388,15 @@ export function CreateJobModal({ open, onOpenChange, onCreated, defaultValues }:
                             </select>
                         </div>
 
-                        <div className="flex justify-end gap-2 pt-2">
+                        </DialogBody>
+                        <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={!jobTitle.trim() || !contactId || saving}>
                                 {saving ? "Creating..." : "Create Job"}
                             </Button>
-                        </div>
+                        </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>

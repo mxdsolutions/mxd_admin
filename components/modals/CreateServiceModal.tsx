@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -62,56 +62,58 @@ export function CreateServiceModal({ open, onOpenChange, onCreated }: CreateServ
                     <DialogTitle>New Service</DialogTitle>
                     <DialogDescription>Add a service to your operations.</DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-muted-foreground">Service Name *</label>
-                        <Input
-                            autoFocus
-                            placeholder="Website Package"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="rounded-xl"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-muted-foreground">Description</label>
-                        <Input
-                            placeholder="Brief description of the service..."
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className="rounded-xl"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-muted-foreground">Initial Value</label>
-                        <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={initialValue}
-                            onChange={(e) => setInitialValue(e.target.value)}
-                            className="rounded-xl"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-muted-foreground">Monthly Value</label>
-                        <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={monthlyValue}
-                            onChange={(e) => setMonthlyValue(e.target.value)}
-                            className="rounded-xl"
-                        />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-2">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                    <DialogBody className="space-y-4 pb-6">
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-muted-foreground">Service Name *</label>
+                            <Input
+                                autoFocus
+                                placeholder="Website Package"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="rounded-xl"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-muted-foreground">Description</label>
+                            <Input
+                                placeholder="Brief description of the service..."
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                className="rounded-xl"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-muted-foreground">Initial Value</label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={initialValue}
+                                onChange={(e) => setInitialValue(e.target.value)}
+                                className="rounded-xl"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-muted-foreground">Monthly Value</label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={monthlyValue}
+                                onChange={(e) => setMonthlyValue(e.target.value)}
+                                className="rounded-xl"
+                            />
+                        </div>
+                    </DialogBody>
+                    <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                             Cancel
                         </Button>
                         <Button type="submit" disabled={!name.trim() || saving}>
                             {saving ? "Creating..." : "Create Service"}
                         </Button>
-                    </div>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

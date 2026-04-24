@@ -299,7 +299,7 @@ function JobsPageContent() {
                                 <th className={tableHeadCell + " pl-4 md:pl-6 lg:pl-10 pr-4"}>Job Name</th>
                                 <th className={tableHeadCell + " px-4 hidden sm:table-cell"}>Type</th>
                                 <th className={tableHeadCell + " px-4 hidden sm:table-cell"}>Customer</th>
-                                <th className={tableHeadCell + " px-4"}>Assigned</th>
+                                <th className={tableHeadCell + " px-4 hidden sm:table-cell"}>Assigned</th>
                                 <th className={tableHeadCell + " px-4 text-right sm:text-left"}>Cost</th>
                                 <th className={tableHeadCell + " px-4 hidden sm:table-cell"}>Payment</th>
                                 <th className={tableHeadCell + " px-4 hidden sm:table-cell"}>Status</th>
@@ -332,7 +332,7 @@ function JobsPageContent() {
                                         <td className={tableCellMuted + " px-4 hidden sm:table-cell truncate max-w-[150px]"}>
                                             {job.contact ? `${job.contact.first_name} ${job.contact.last_name}` : (job.company?.name || "—")}
                                         </td>
-                                        <td className={tableCellMuted + " px-4 truncate max-w-[180px]"}>
+                                        <td className={tableCellMuted + " px-4 hidden sm:table-cell truncate max-w-[180px]"}>
                                             {job.assignees.length === 0
                                                 ? <span className="text-muted-foreground">Unassigned</span>
                                                 : <span>{job.assignees.map(a => a.full_name || a.email || "—").join(", ")}</span>}

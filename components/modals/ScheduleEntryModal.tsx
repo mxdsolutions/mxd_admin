@@ -5,6 +5,8 @@ import {
     Dialog,
     DialogContent,
     DialogHeader,
+    DialogBody,
+    DialogFooter,
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
@@ -127,7 +129,8 @@ export function ScheduleEntryModal({
                             : "Add a job to the schedule."}
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                    <DialogBody className="space-y-4 pb-6">
                     {/* Job selector (only for new entries) */}
                     {!isEditing && (
                         <div className="space-y-1.5">
@@ -184,7 +187,8 @@ export function ScheduleEntryModal({
                         />
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-2">
+                    </DialogBody>
+                    <DialogFooter>
                         <Button
                             type="button"
                             variant="outline"
@@ -199,7 +203,7 @@ export function ScheduleEntryModal({
                                   ? "Update"
                                   : "Schedule"}
                         </Button>
-                    </div>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

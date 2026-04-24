@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -85,7 +85,8 @@ export function CreateTenantModal({ open, onOpenChange, onCreated }: CreateTenan
                     <DialogTitle>New Tenant</DialogTitle>
                     <DialogDescription>Create a new tenant account and owner.</DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                    <DialogBody className="space-y-4 pb-6">
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium text-muted-foreground">Company Name *</label>
                         <Input
@@ -173,14 +174,15 @@ export function CreateTenantModal({ open, onOpenChange, onCreated }: CreateTenan
                         />
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-2">
+                    </DialogBody>
+                    <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                             Cancel
                         </Button>
                         <Button type="submit" disabled={!form.company_name.trim() || !form.owner_email.trim() || saving}>
                             {saving ? "Creating..." : "Create Tenant"}
                         </Button>
-                    </div>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

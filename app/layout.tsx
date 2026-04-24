@@ -24,6 +24,11 @@ const bebasNeuePro = localFont({
     variable: "--font-antonio",
 });
 
+const paladinsCond = localFont({
+    src: [{ path: "./fonts/paladinscond.ttf", weight: "400", style: "normal" }],
+    variable: "--font-paladins-cond",
+});
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -33,10 +38,10 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | MXD",
-    default: "MXD Admin",
+    template: "%s | THOR",
+    default: "THOR",
   },
-  description: "MXD administration platform",
+  description: "THOR administration platform",
 };
 
 export default function RootLayout({
@@ -45,8 +50,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${plexSans.variable} ${bebasNeuePro.variable}`}>
-      <body className="font-sans min-h-screen flex flex-col">
+    <html lang="en" className={`${plexSans.variable} ${bebasNeuePro.variable} ${paladinsCond.variable}`}>
+      <body className="font-sans min-h-dvh flex flex-col">
         {children}
         <Toaster position="top-center" richColors />
       </body>

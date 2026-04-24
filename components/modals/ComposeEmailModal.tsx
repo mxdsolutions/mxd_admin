@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
@@ -140,7 +140,7 @@ export function ComposeEmailModal({ open, onOpenChange, onSent, defaultTo, defau
                     <DialogDescription>Compose and send an email from your connected Outlook account.</DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 mt-2">
+                <DialogBody className="space-y-4 pb-6">
                     {/* From */}
                     {fromEmail && (
                         <div className="flex items-center gap-2 text-sm">
@@ -232,16 +232,15 @@ export function ComposeEmailModal({ open, onOpenChange, onSent, defaultTo, defau
                         </label>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-2">
-                        <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-                            Cancel
-                        </Button>
-                        <Button size="sm" onClick={handleSend} disabled={sending}>
-                            {sending ? "Sending..." : "Send Email"}
-                        </Button>
-                    </div>
-                </div>
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleSend} disabled={sending}>
+                        {sending ? "Sending..." : "Send Email"}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

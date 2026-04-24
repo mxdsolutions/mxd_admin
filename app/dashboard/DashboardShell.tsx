@@ -130,7 +130,7 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
         : visibleNavItems;
 
     return (
-        <div className="min-h-screen bg-black flex">
+        <div className="h-dvh overflow-hidden bg-black flex">
             {/* Desktop Sidebar */}
             <aside className="w-[280px] bg-black hidden md:flex flex-col fixed inset-y-0 left-0 z-30">
                 <div className="h-16 xl:h-20 px-5 flex items-center">
@@ -268,7 +268,7 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                         <MobileHeaderActionButton />
                     </header>
 
-                    <div className="relative w-full pt-4 lg:pt-6 pb-16 md:pb-0 min-w-0 flex-1 min-h-0 overflow-y-auto">
+                    <div className="relative w-full pt-4 lg:pt-6 min-w-0 flex-1 min-h-0 overflow-y-auto">
                         <ErrorBoundary><RouteGuard>{children}</RouteGuard></ErrorBoundary>
                     </div>
                 </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -81,7 +81,8 @@ export function CreateReportTemplateModal({ open, onOpenChange, onCreated }: Cre
                     <DialogTitle>New Report Template</DialogTitle>
                     <DialogDescription>Create a report template for tenants to use.</DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                    <DialogBody className="space-y-4 pb-6">
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium text-muted-foreground">Template Name *</label>
                         <Input
@@ -123,14 +124,15 @@ export function CreateReportTemplateModal({ open, onOpenChange, onCreated }: Cre
                         />
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-2">
+                    </DialogBody>
+                    <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                             Cancel
                         </Button>
                         <Button type="submit" disabled={!form.name.trim() || !form.slug.trim() || !form.category || saving}>
                             {saving ? "Creating..." : "Create Template"}
                         </Button>
-                    </div>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

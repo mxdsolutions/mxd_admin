@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { toast } from "sonner";
@@ -86,33 +86,32 @@ export function EmailSignatureModal({ open, onOpenChange, signatureHtml, onSaved
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 mt-2">
+                <DialogBody className="pb-6">
                     <RichTextEditor
                         value={signature}
                         onChange={setSignature}
                         placeholder="Type your email signature..."
                         className="min-h-[200px]"
                     />
-
-                    <div className="flex justify-between pt-2">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleClear}
-                            disabled={saving || (!signatureHtml && !signature)}
-                        >
-                            Clear Signature
+                </DialogBody>
+                <DialogFooter className="justify-between">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClear}
+                        disabled={saving || (!signatureHtml && !signature)}
+                    >
+                        Clear Signature
+                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                            Cancel
                         </Button>
-                        <div className="flex gap-3">
-                            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-                                Cancel
-                            </Button>
-                            <Button size="sm" onClick={handleSave} disabled={saving}>
-                                {saving ? "Saving..." : "Save Signature"}
-                            </Button>
-                        </div>
+                        <Button size="sm" onClick={handleSave} disabled={saving}>
+                            {saving ? "Saving..." : "Save Signature"}
+                        </Button>
                     </div>
-                </div>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -364,7 +364,7 @@ export function EditQuoteModal({ open, onOpenChange, quoteId, onUpdated }: EditQ
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[900px] h-[90vh] flex flex-col overflow-hidden">
+            <DialogContent className="sm:max-w-[900px] h-[90vh]">
                 <DialogHeader>
                     <DialogTitle>Edit Quote{quote ? `: ${quote.title}` : ""}</DialogTitle>
                     <DialogDescription>Edit sections, line items, and pricing.</DialogDescription>
@@ -373,9 +373,10 @@ export function EditQuoteModal({ open, onOpenChange, quoteId, onUpdated }: EditQ
                 {loading ? (
                     <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading...</div>
                 ) : (
-                    <div className="flex flex-col flex-1 min-h-0">
+                    <>
+                        <DialogBody className="space-y-4 pb-6">
                         {/* Top section */}
-                        <div className="px-1 space-y-4 pb-4">
+                        <div className="space-y-4">
                             {/* Scope description */}
                             <div className="space-y-1.5">
                                 <label className="text-sm font-medium text-muted-foreground">Scope / Description</label>
@@ -406,7 +407,7 @@ export function EditQuoteModal({ open, onOpenChange, quoteId, onUpdated }: EditQ
                         </div>
 
                         {/* Scrollable content */}
-                        <div className="flex-1 overflow-y-auto min-h-0 px-1 space-y-4">
+                        <div className="space-y-4">
                             {sections.length === 0 && lineItems.length === 0 && (
                                 <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-muted-foreground text-sm">
                                     Click &ldquo;Add Section&rdquo; to start, then search to add items.
@@ -516,20 +517,18 @@ export function EditQuoteModal({ open, onOpenChange, quoteId, onUpdated }: EditQ
                             )}
                         </div>
 
-                        {/* Footer */}
-                        <div className="pt-3 mt-1 border-t border-border px-1 shrink-0 space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    {sections.length} section{sections.length !== 1 ? "s" : ""} · {lineItems.length} item{lineItems.length !== 1 ? "s" : ""}
-                                </span>
-                                {lineItems.length > 0 && <span className="font-medium text-foreground">{formatCurrency(totals.grandTotal)}</span>}
-                            </div>
+                        </DialogBody>
+                        <DialogFooter className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <span className="text-sm text-muted-foreground">
+                                {sections.length} section{sections.length !== 1 ? "s" : ""} · {lineItems.length} item{lineItems.length !== 1 ? "s" : ""}
+                                {lineItems.length > 0 && <span className="ml-2 font-medium text-foreground">{formatCurrency(totals.grandTotal)}</span>}
+                            </span>
                             <div className="flex gap-2">
                                 <Button type="button" variant="ghost" className="flex-1 sm:flex-none" onClick={() => onOpenChange(false)}>Cancel</Button>
                                 <Button className="flex-1 sm:flex-none" onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save & Close"}</Button>
                             </div>
-                        </div>
-                    </div>
+                        </DialogFooter>
+                    </>
                 )}
             </DialogContent>
         </Dialog>

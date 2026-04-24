@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -105,7 +105,8 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
                         <DialogTitle>New Contact</DialogTitle>
                         <DialogDescription>Add a person to your contacts.</DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                    <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                        <DialogBody className="space-y-4 pb-6">
                         {/* Type toggle */}
                         <div className="flex gap-1 p-1 rounded-full bg-secondary w-fit">
                             <button
@@ -284,14 +285,15 @@ export function CreateContactModal({ open, onOpenChange, onCreated, defaultCompa
                         </div>
                         )}
 
-                        <div className="flex justify-end gap-2 pt-2">
+                        </DialogBody>
+                        <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={!firstName.trim() || !lastName.trim() || saving}>
                                 {saving ? "Creating..." : "Create Contact"}
                             </Button>
-                        </div>
+                        </DialogFooter>
                     </form>
                 </DialogContent>
         </Dialog>
