@@ -1,5 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { xeroFetch, getXeroConnection } from "@/lib/xero";
+import { pushCompanyToXero } from "@/lib/xero-sync-contacts";
 
 // --- Xero Invoice Types ---
 
@@ -90,6 +91,7 @@ export function mapMXDInvoiceToXero(
         due_date?: string | null;
         reference?: string | null;
         currency_code?: string | null;
+        gst_inclusive?: boolean | null;
     },
     xeroContactId: string,
     lineItems: Array<{
@@ -107,6 +109,7 @@ export function mapMXDInvoiceToXero(
         DueDate: invoice.due_date || undefined,
         Reference: invoice.reference || undefined,
         CurrencyCode: invoice.currency_code || "AUD",
+        LineAmountTypes: invoice.gst_inclusive === false ? "Exclusive" : "Inclusive",
         LineItems: lineItems.map((li) => ({
             Description: li.description || "",
             Quantity: li.quantity,
@@ -124,12 +127,13 @@ export async function pushInvoiceToXero(
     invoiceId: string,
     invoice: Parameters<typeof mapMXDInvoiceToXero>[0],
     companyId: string,
-    lineItems: Parameters<typeof mapMXDInvoiceToXero>[2]
+    lineItems: Parameters<typeof mapMXDInvoiceToXero>[2],
+    contactId?: string | null
 ) {
     const connection = await getXeroConnection(supabase, tenantId);
     if (!connection) return null;
 
-    // Get company's Xero contact ID
+    // Get company's Xero contact ID — create it in Xero if not yet mapped
     const { data: companyMapping } = await supabase
         .from("xero_sync_mappings")
         .select("xero_id")
@@ -138,7 +142,38 @@ export async function pushInvoiceToXero(
         .eq("mxd_id", companyId)
         .single();
 
-    if (!companyMapping?.xero_id) return null;
+    let xeroContactId = companyMapping?.xero_id as string | undefined;
+    if (!xeroContactId) {
+        const { data: company } = await supabase
+            .from("companies")
+            .select("name, email, phone, website, address, postcode")
+            .eq("id", companyId)
+            .eq("tenant_id", tenantId)
+            .single();
+        if (!company) return null;
+
+        // Fall back to the invoice's selected contact email if the company has none
+        let fallbackEmail: string | null = null;
+        if (contactId && !company.email) {
+            const { data: invoiceContact } = await supabase
+                .from("contacts")
+                .select("email")
+                .eq("id", contactId)
+                .eq("tenant_id", tenantId)
+                .single();
+            fallbackEmail = invoiceContact?.email || null;
+        }
+
+        const pushed = await pushCompanyToXero(
+            supabase,
+            tenantId,
+            companyId,
+            company,
+            fallbackEmail
+        );
+        if (!pushed) return null;
+        xeroContactId = pushed;
+    }
 
     // Check if invoice already mapped
     const { data: invoiceMapping } = await supabase
@@ -149,7 +184,7 @@ export async function pushInvoiceToXero(
         .eq("mxd_id", invoiceId)
         .single();
 
-    const xeroPayload = mapMXDInvoiceToXero(invoice, companyMapping.xero_id, lineItems);
+    const xeroPayload = mapMXDInvoiceToXero(invoice, xeroContactId, lineItems);
     let res: Response;
 
     if (invoiceMapping?.xero_id) {

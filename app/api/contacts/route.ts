@@ -82,5 +82,19 @@ export const PATCH = withAuth(async (request, { supabase, tenantId }) => {
 
     if (error) return serverError();
 
+    // Re-sync parent company so Xero's ContactPersons list stays current
+    if (data.company_id) {
+        (async () => {
+            const { data: company } = await supabase
+                .from("companies")
+                .select("name, email, phone, website, address, postcode")
+                .eq("id", data.company_id)
+                .single();
+            if (company) {
+                await pushCompanyToXero(supabase, tenantId, data.company_id, company);
+            }
+        })().catch(console.error);
+    }
+
     return NextResponse.json({ item: data });
 });

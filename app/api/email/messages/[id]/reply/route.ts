@@ -22,18 +22,52 @@ export async function POST(
             { status: 400 }
         );
     }
+    const { comment } = validation.data;
+    const to = Array.isArray(validation.data.to) ? validation.data.to : [];
+    const cc = Array.isArray(validation.data.cc) ? validation.data.cc : [];
+    if (to.length === 0) {
+        return NextResponse.json({ error: "At least one recipient is required" }, { status: 400 });
+    }
 
     try {
-        const res = await graphFetch(supabase, user.id, `/me/messages/${id}/reply`, {
+        const draftRes = await graphFetch(supabase, user.id, `/me/messages/${id}/createReply`, {
             method: "POST",
-            body: JSON.stringify({ comment: validation.data.comment }),
         });
+        if (!draftRes.ok) {
+            const err = await draftRes.json();
+            return NextResponse.json(
+                { error: err.error?.message || "Failed to create reply" },
+                { status: draftRes.status }
+            );
+        }
+        const draft = await draftRes.json();
+        const quoted = draft.body?.content || "";
+        const merged = `<div>${comment}</div>${quoted}`;
 
-        if (!res.ok) {
-            const err = await res.json();
+        const patchRes = await graphFetch(supabase, user.id, `/me/messages/${draft.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+                toRecipients: to.map((address) => ({ emailAddress: { address } })),
+                ccRecipients: cc.map((address) => ({ emailAddress: { address } })),
+                body: { contentType: "HTML", content: merged },
+            }),
+        });
+        if (!patchRes.ok) {
+            const err = await patchRes.json();
+            return NextResponse.json(
+                { error: err.error?.message || "Failed to prepare reply" },
+                { status: patchRes.status }
+            );
+        }
+
+        const sendRes = await graphFetch(supabase, user.id, `/me/messages/${draft.id}/send`, {
+            method: "POST",
+        });
+        if (!sendRes.ok) {
+            const err = await sendRes.json();
             return NextResponse.json(
                 { error: err.error?.message || "Failed to send reply" },
-                { status: res.status }
+                { status: sendRes.status }
             );
         }
 

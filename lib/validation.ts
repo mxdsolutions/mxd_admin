@@ -127,6 +127,8 @@ export const sendEmailSchema = z.object({
 
 export const replyEmailSchema = z.object({
     comment: z.string().min(1, "Reply content is required"),
+    to: z.array(z.string().email()).min(1, "At least one recipient is required"),
+    cc: z.array(z.string().email()).optional(),
 });
 
 // --- Quote Schemas ---

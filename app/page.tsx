@@ -79,16 +79,17 @@ function AuthContent() {
     <div className="h-dvh w-full flex overflow-hidden">
       {/* Left Panel - Form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-background overflow-y-auto">
-        <div className="w-full max-w-md space-y-8">
+        <div className="relative w-full max-w-md space-y-8">
+          <div className="absolute left-0 right-0 bottom-full mb-10 flex flex-col items-center cursor-default">
+            <span className="font-paladins text-6xl tracking-[0.08em] text-foreground leading-none">
+              THOR
+            </span>
+            <span className="mt-2 text-sm text-muted-foreground tracking-wide">
+              Tradie OS: Construction Amplified
+            </span>
+          </div>
+
           <div className="text-center">
-            <div className="inline-flex flex-col items-center justify-center mb-8 cursor-default">
-              <span className="font-paladins text-6xl tracking-[0.08em] text-foreground leading-none">
-                THOR
-              </span>
-              <span className="mt-2 text-sm text-muted-foreground tracking-wide">
-                Tradie OS: Construction Amplified
-              </span>
-            </div>
             <h2 className="text-3xl font-bold mb-2">
               Welcome back
             </h2>

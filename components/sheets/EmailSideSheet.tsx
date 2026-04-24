@@ -10,8 +10,14 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+function buildReplyBody(signatureHtml?: string | null): string {
+    if (!signatureHtml) return "";
+    return `<p></p><p>--</p>${signatureHtml}`;
+}
 
 type EmailMessage = {
     id: string;
@@ -33,15 +39,17 @@ interface EmailSideSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     matchedContacts?: Record<string, MatchedContact>;
+    signatureHtml?: string | null;
 }
 
-export function EmailSideSheet({ emailId, open, onOpenChange, matchedContacts = {} }: EmailSideSheetProps) {
+export function EmailSideSheet({ emailId, open, onOpenChange, matchedContacts = {}, signatureHtml }: EmailSideSheetProps) {
     const [email, setEmail] = useState<EmailMessage | null>(null);
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<"email" | "details">("email");
     const [replyText, setReplyText] = useState("");
     const [replying, setReplying] = useState(false);
     const [showReply, setShowReply] = useState(false);
+    const [replyMode, setReplyMode] = useState<"reply" | "replyAll">("reply");
 
     const fetchEmail = async (id: string) => {
         setLoading(true);
@@ -73,20 +81,44 @@ export function EmailSideSheet({ emailId, open, onOpenChange, matchedContacts = 
         fetchEmail(emailId);
     }
 
+    const buildRecipients = () => {
+        if (!email) return { to: [] as string[], cc: [] as string[] };
+        const senderAddr = email.from?.emailAddress?.address;
+        const to = senderAddr ? [senderAddr] : [];
+        if (replyMode !== "replyAll") return { to, cc: [] };
+
+        const seen = new Set(to.map((a) => a.toLowerCase()));
+        const cc: string[] = [];
+        for (const r of [...(email.toRecipients || []), ...(email.ccRecipients || [])]) {
+            const addr = r.emailAddress?.address;
+            if (!addr) continue;
+            const key = addr.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            cc.push(addr);
+        }
+        return { to, cc };
+    };
+
     const handleReply = async () => {
         if (!email || !replyText.trim()) return;
+        const { to, cc } = buildRecipients();
+        if (to.length === 0) {
+            toast.error("No recipient address on original email");
+            return;
+        }
         setReplying(true);
         try {
             const res = await fetch(`/api/email/messages/${email.id}/reply`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ comment: replyText }),
+                body: JSON.stringify({ comment: replyText, to, cc }),
             });
             if (!res.ok) {
                 const data = await res.json();
                 throw new Error(data.error || "Failed to send reply");
             }
-            toast.success("Reply sent");
+            toast.success(replyMode === "replyAll" ? "Reply to all sent" : "Reply sent");
             setReplyText("");
             setShowReply(false);
         } catch (err) {
@@ -94,6 +126,12 @@ export function EmailSideSheet({ emailId, open, onOpenChange, matchedContacts = 
         } finally {
             setReplying(false);
         }
+    };
+
+    const openReply = (mode: "reply" | "replyAll") => {
+        setReplyMode(mode);
+        setReplyText(buildReplyBody(signatureHtml));
+        setShowReply(true);
     };
 
     const senderName = email?.from?.emailAddress?.name || email?.from?.emailAddress?.address || "Unknown";
@@ -118,6 +156,7 @@ export function EmailSideSheet({ emailId, open, onOpenChange, matchedContacts = 
             <SheetContent className="w-full sm:max-w-xl md:max-w-2xl flex flex-col p-0 border-l border-border bg-background">
                 {loading || !email ? (
                     <div className="flex-1 flex items-center justify-center">
+                        <SheetTitle className="sr-only">Email</SheetTitle>
                         <p className="text-sm text-muted-foreground">
                             {loading ? "Loading..." : "No email selected"}
                         </p>
@@ -200,23 +239,55 @@ export function EmailSideSheet({ emailId, open, onOpenChange, matchedContacts = 
 
                                         {/* Reply section */}
                                         {!showReply ? (
-                                            <div className="pt-4 border-t border-border">
+                                            <div className="pt-4 border-t border-border flex gap-2">
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    onClick={() => setShowReply(true)}
+                                                    onClick={() => openReply("reply")}
                                                 >
                                                     Reply
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => openReply("replyAll")}
+                                                >
+                                                    Reply All
                                                 </Button>
                                             </div>
                                         ) : (
                                             <div className="pt-4 border-t border-border space-y-3">
-                                                <textarea
-                                                    className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-base min-h-[120px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
-                                                    placeholder="Write your reply..."
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                                    {replyMode === "replyAll" ? "Reply All" : "Reply"}
+                                                </p>
+                                                {(() => {
+                                                    const toList = senderEmail
+                                                        ? [{ name: senderName, address: senderEmail }]
+                                                        : [];
+                                                    const ccList: { name: string; address: string }[] = [];
+                                                    if (replyMode === "replyAll") {
+                                                        const seen = new Set(toList.map((r) => r.address.toLowerCase()));
+                                                        for (const r of [...(email.toRecipients || []), ...(email.ccRecipients || [])]) {
+                                                            const addr = r.emailAddress?.address;
+                                                            if (!addr) continue;
+                                                            const key = addr.toLowerCase();
+                                                            if (seen.has(key)) continue;
+                                                            seen.add(key);
+                                                            ccList.push({ name: r.emailAddress.name || addr, address: addr });
+                                                        }
+                                                    }
+                                                    return (
+                                                        <div className="rounded-xl border border-border bg-secondary/30 px-3 py-2 space-y-1">
+                                                            <RecipientLine label="To" recipients={toList} />
+                                                            {ccList.length > 0 && <RecipientLine label="CC" recipients={ccList} />}
+                                                        </div>
+                                                    );
+                                                })()}
+                                                <RichTextEditor
                                                     value={replyText}
-                                                    onChange={(e) => setReplyText(e.target.value)}
-                                                    autoFocus
+                                                    onChange={setReplyText}
+                                                    placeholder="Write your reply..."
+                                                    className="min-h-[160px]"
                                                 />
                                                 <div className="flex gap-2">
                                                     <Button
@@ -224,7 +295,7 @@ export function EmailSideSheet({ emailId, open, onOpenChange, matchedContacts = 
                                                         onClick={handleReply}
                                                         disabled={replying || !replyText.trim()}
                                                     >
-                                                        {replying ? "Sending..." : "Send Reply"}
+                                                        {replying ? "Sending..." : replyMode === "replyAll" ? "Send Reply All" : "Send Reply"}
                                                     </Button>
                                                     <Button
                                                         variant="ghost"
@@ -290,6 +361,28 @@ function DetailRow({ label, value }: { label: string; value: string }) {
         <div className="flex gap-4">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider w-24 shrink-0 pt-0.5">{label}</span>
             <span className="text-sm text-foreground break-all">{value}</span>
+        </div>
+    );
+}
+
+function RecipientLine({ label, recipients }: { label: string; recipients: { name: string; address: string }[] }) {
+    return (
+        <div className="flex gap-2 text-sm">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider w-10 shrink-0 pt-1">{label}</span>
+            <div className="flex flex-wrap gap-1.5 min-w-0">
+                {recipients.map((r) => (
+                    <span
+                        key={r.address}
+                        className="inline-flex items-center gap-1 rounded-md bg-background border border-border/60 px-2 py-0.5 text-xs"
+                        title={r.address}
+                    >
+                        <span className="font-medium text-foreground truncate max-w-[180px]">{r.name}</span>
+                        {r.name.toLowerCase() !== r.address.toLowerCase() && (
+                            <span className="text-muted-foreground truncate max-w-[220px]">&lt;{r.address}&gt;</span>
+                        )}
+                    </span>
+                ))}
+            </div>
         </div>
     );
 }

@@ -228,7 +228,23 @@
       "Read(//dev/**)",
       "Bash(curl -s \"http://localhost:8005/api/quotes?offset=0&limit=20\" -H \"Cookie: $\\(cat /dev/null\\)\")",
       "Bash(npx eslint *)",
-      "Bash(python3)"
+      "Bash(python3)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(mkdir -p /tmp/design-bundle)",
+      "Bash(tar -xzf /tmp/design.gz)",
+      "WebFetch(domain:developer.xero.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:plan2winsoftware.com)",
+      "mcp__8704dd0d-2e61-44fa-819c-edaa29512305__list_issue_statuses",
+      "mcp__8704dd0d-2e61-44fa-819c-edaa29512305__list_issue_labels",
+      "mcp__8704dd0d-2e61-44fa-819c-edaa29512305__list_issues",
+      "mcp__8704dd0d-2e61-44fa-819c-edaa29512305__list_teams",
+      "mcp__8704dd0d-2e61-44fa-819c-edaa29512305__get_project",
+      "mcp__8704dd0d-2e61-44fa-819c-edaa29512305__list_projects",
+      "mcp__8704dd0d-2e61-44fa-819c-edaa29512305__save_project",
+      "Bash(curl -sL \"https://developer.xero.com/documentation/guides/oauth2/scopes/\")",
+      "Bash(curl -sL --max-time 30 \"https://developer.xero.com/documentation/guides/oauth2/scopes/\" -o /tmp/xero_scopes.html)",
+      "Bash(ipconfig getifaddr *)"
     ]
   }
 }

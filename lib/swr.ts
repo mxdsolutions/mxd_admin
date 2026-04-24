@@ -115,6 +115,23 @@ export function useMyTasks() {
     });
 }
 
+export type MyTenant = {
+    id: string;
+    name: string;
+    slug: string;
+    company_name: string | null;
+    logo_url: string | null;
+    role: string;
+};
+
+export function useMyTenants() {
+    return useSWR<{ tenants: MyTenant[]; active_tenant_id: string | null }>(
+        "/api/me/tenants",
+        fetcher,
+        { ...defaultConfig, dedupingInterval: 60000 },
+    );
+}
+
 // --- Schedule Hooks ---
 
 export function useScheduleEntries(start: string, end: string) {

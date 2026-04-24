@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { DashboardPage, DashboardControls } from "@/components/dashboard/DashboardPage";
+import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import { usePageTitle } from "@/lib/page-title-context";
 import { ScrollableTableLayout } from "@/components/dashboard/ScrollableTableLayout";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,20 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { tableBase, tableHead, tableHeadCell, tableRow, tableCell } from "@/lib/design-system";
-import { IconPlus as PlusIcon, IconSearch as MagnifyingGlassIcon, IconMail as EnvelopeIcon, IconLink as LinkIcon, IconSignature } from "@tabler/icons-react";
+import {
+    IconPlus as PlusIcon,
+    IconSearch as MagnifyingGlassIcon,
+    IconMail as EnvelopeIcon,
+    IconLink as LinkIcon,
+    IconSignature,
+    IconInbox,
+    IconSend,
+    IconFile,
+    IconTrash,
+    IconArchive,
+    IconAlertTriangle,
+} from "@tabler/icons-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { ComposeEmailModal } from "@/components/modals/ComposeEmailModal";
 import { EmailSignatureModal } from "@/components/modals/EmailSignatureModal";
 import { EmailSideSheet } from "@/components/sheets/EmailSideSheet";
@@ -28,6 +41,17 @@ type EmailMessage = {
 
 type MatchedContact = { id: string; first_name: string; last_name: string };
 
+const FOLDERS = [
+    { id: "inbox", label: "Inbox", icon: IconInbox },
+    { id: "drafts", label: "Drafts", icon: IconFile },
+    { id: "sentitems", label: "Sent", icon: IconSend },
+    { id: "junkemail", label: "Junk", icon: IconAlertTriangle },
+    { id: "deleteditems", label: "Deleted", icon: IconTrash },
+    { id: "archive", label: "Archive", icon: IconArchive },
+] as const;
+
+type FolderId = typeof FOLDERS[number]["id"];
+
 export default function EmailsPage() {
     usePageTitle("Emails");
     const [connected, setConnected] = useState<boolean | null>(null);
@@ -44,6 +68,7 @@ export default function EmailsPage() {
     const [signatureHtml, setSignatureHtml] = useState<string | null>(null);
     const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [folder, setFolder] = useState<FolderId>("inbox");
 
     const checkConnection = async () => {
         try {
@@ -60,12 +85,12 @@ export default function EmailsPage() {
         }
     };
 
-    const fetchEmails = useCallback(async (skip = 0, searchQuery = search) => {
+    const fetchEmails = useCallback(async (skip = 0, searchQuery = search, folderId: FolderId = folder) => {
         if (skip === 0) setLoading(true);
         else setLoadingMore(true);
 
         try {
-            const params = new URLSearchParams({ top: "25", skip: String(skip) });
+            const params = new URLSearchParams({ top: "25", skip: String(skip), folder: folderId });
             if (searchQuery) params.set("search", searchQuery);
 
             const res = await fetch(`/api/email/messages?${params}`);
@@ -95,7 +120,7 @@ export default function EmailsPage() {
             setLoading(false);
             setLoadingMore(false);
         }
-    }, [search]);
+    }, [search, folder]);
 
     useEffect(() => {
         const init = async () => {
@@ -115,7 +140,15 @@ export default function EmailsPage() {
 
     const handleSearch = () => {
         setSearch(searchInput);
-        fetchEmails(0, searchInput);
+        fetchEmails(0, searchInput, folder);
+    };
+
+    const handleFolderChange = (next: FolderId) => {
+        if (next === folder) return;
+        setFolder(next);
+        setSearchInput("");
+        setSearch("");
+        fetchEmails(0, "", next);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -174,37 +207,71 @@ export default function EmailsPage() {
 
     return (
         <>
+            <div className="flex h-full">
+                {/* Folder sidebar — desktop */}
+                <aside className="hidden md:flex flex-col w-52 shrink-0 border-r border-border/60 pl-4 md:pl-6 lg:pl-10 pr-3 pt-1 gap-0.5 overflow-y-auto">
+                    {FOLDERS.map((f) => {
+                        const Icon = f.icon;
+                        const active = folder === f.id;
+                        return (
+                            <button
+                                key={f.id}
+                                onClick={() => handleFolderChange(f.id)}
+                                className={cn(
+                                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left",
+                                    active
+                                        ? "bg-secondary text-foreground"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                                )}
+                            >
+                                <Icon className="w-4 h-4 shrink-0" />
+                                {f.label}
+                            </button>
+                        );
+                    })}
+                </aside>
+
+                <div className="flex-1 min-w-0">
             <ScrollableTableLayout
                 header={
-                    <>
-                        <DashboardControls>
-                            <div className="flex items-center gap-3">
-                                <div className="relative flex-1 min-w-[320px] max-w-xl">
-                                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search emails..."
-                                        className="pl-9 rounded-full"
-                                        value={searchInput}
-                                        onChange={(e) => setSearchInput(e.target.value)}
-                                        onKeyDown={handleKeyDown}
-                                    />
-                                </div>
+                    <div className="relative flex items-center justify-between gap-3 px-4 md:pl-4 md:pr-6 lg:pr-10">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            {/* Mobile folder select */}
+                            <Select value={folder} onValueChange={(v) => handleFolderChange(v as FolderId)}>
+                                <SelectTrigger className="md:hidden w-[130px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {FOLDERS.map((f) => (
+                                        <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="relative flex-1 min-w-0 max-w-xl">
+                                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search emails..."
+                                    className="pl-9 rounded-full"
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                />
                             </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                                <Button variant="outline" size="sm" onClick={() => setShowSignature(true)}>
-                                    <IconSignature className="w-4 h-4 mr-1.5" />
-                                    Signature
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => fetchEmails(0, search)}>
-                                    Refresh
-                                </Button>
-                                <Button size="sm" onClick={() => setShowCompose(true)}>
-                                    <PlusIcon className="w-4 h-4 mr-1.5" />
-                                    Compose
-                                </Button>
-                            </div>
-                        </DashboardControls>
-                    </>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                            <Button variant="outline" size="sm" onClick={() => setShowSignature(true)}>
+                                <IconSignature className="w-4 h-4 mr-1.5" />
+                                Signature
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => fetchEmails(0, search)}>
+                                Refresh
+                            </Button>
+                            <Button size="sm" onClick={() => setShowCompose(true)}>
+                                <PlusIcon className="w-4 h-4 mr-1.5" />
+                                Compose
+                            </Button>
+                        </div>
+                    </div>
                 }
                 footer={hasMore ? (
                     <div className="flex justify-center py-3 border-t border-border/50 bg-background">
@@ -305,6 +372,8 @@ export default function EmailsPage() {
                     </table>
                 )}
             </ScrollableTableLayout>
+                </div>
+            </div>
 
             <ComposeEmailModal
                 open={showCompose}
@@ -325,6 +394,7 @@ export default function EmailsPage() {
                 open={sheetOpen}
                 onOpenChange={setSheetOpen}
                 matchedContacts={matchedContacts}
+                signatureHtml={signatureHtml}
             />
         </>
     );

@@ -91,14 +91,21 @@ export function mapXeroContactPersonsToContacts(
 
 // --- MXD -> Xero Mapping ---
 
-export function mapCompanyToXeroContact(company: {
-    name: string;
-    email?: string | null;
-    phone?: string | null;
-    website?: string | null;
-    address?: string | null;
-    postcode?: string | null;
-}) {
+export function mapCompanyToXeroContact(
+    company: {
+        name: string;
+        email?: string | null;
+        phone?: string | null;
+        website?: string | null;
+        address?: string | null;
+        postcode?: string | null;
+    },
+    contactPersons?: Array<{
+        first_name: string;
+        last_name: string;
+        email?: string | null;
+    }>
+) {
     const contact: Record<string, unknown> = { Name: company.name };
     if (company.email) contact.EmailAddress = company.email;
     if (company.phone) {
@@ -113,6 +120,17 @@ export function mapCompanyToXeroContact(company: {
                 PostalCode: company.postcode || "",
             },
         ];
+    }
+    // Xero rejects ContactPersons when the primary Contact has no EmailAddress
+    // ("Additional people cannot be added when the primary person has no email address set"),
+    // so only attach them when the company itself has an email.
+    if (company.email && contactPersons && contactPersons.length > 0) {
+        contact.ContactPersons = contactPersons.map((cp) => ({
+            FirstName: cp.first_name,
+            LastName: cp.last_name,
+            EmailAddress: cp.email || undefined,
+            IncludeInEmails: false,
+        }));
     }
     return contact;
 }
@@ -137,7 +155,8 @@ export async function pushCompanyToXero(
     supabase: SupabaseClient,
     tenantId: string,
     companyId: string,
-    companyData: Parameters<typeof mapCompanyToXeroContact>[0]
+    companyData: Parameters<typeof mapCompanyToXeroContact>[0],
+    fallbackEmail?: string | null
 ) {
     const connection = await getXeroConnection(supabase, tenantId);
     if (!connection) return null;
@@ -151,7 +170,25 @@ export async function pushCompanyToXero(
         .eq("mxd_id", companyId)
         .single();
 
-    const xeroPayload = mapCompanyToXeroContact(companyData);
+    // Fetch current contact persons for this company so Xero stays in sync
+    const { data: contactPersons } = await supabase
+        .from("contacts")
+        .select("first_name, last_name, email")
+        .eq("tenant_id", tenantId)
+        .eq("company_id", companyId);
+
+    // If the company has no email, fall back to the provided contact email
+    // (e.g. the contact chosen on the quote/invoice). Xero requires the primary
+    // Contact to have an EmailAddress before ContactPersons can attach.
+    const effectiveCompanyData = {
+        ...companyData,
+        email: companyData.email || fallbackEmail || undefined,
+    };
+
+    const xeroPayload = mapCompanyToXeroContact(
+        effectiveCompanyData,
+        contactPersons || undefined
+    );
     let res: Response;
 
     if (mapping?.xero_id) {

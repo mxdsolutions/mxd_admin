@@ -131,7 +131,7 @@ export default function OverviewPage() {
         });
     }, [myTasks, filteredJobs, jobsSearch, taskStatusFilter, taskDueFilter]);
 
-    const jobsTable = (
+    const renderJobsTable = () => (
         <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
                 <h2 className="text-2xl font-bold uppercase tracking-wide leading-none shrink-0">Active Jobs</h2>
@@ -209,7 +209,7 @@ export default function OverviewPage() {
         </div>
     );
 
-    const tasksTable = (
+    const renderTasksTable = () => (
         <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
                 <h2 className="text-2xl font-bold uppercase tracking-wide leading-none shrink-0">My Tasks</h2>
@@ -332,13 +332,13 @@ export default function OverviewPage() {
 
             {/* Desktop: 65:35 split */}
             <motion.div variants={fadeInUp} className="hidden lg:grid grid-cols-[2fr_1fr] gap-3 px-4 md:px-6 lg:px-10">
-                {jobsTable}
-                {tasksTable}
+                {renderJobsTable()}
+                {renderTasksTable()}
             </motion.div>
 
             {/* Mobile: Tab content */}
             <motion.div variants={fadeInUp} className="lg:hidden px-4 md:px-6">
-                {mobileTab === "tasks" ? tasksTable : jobsTable}
+                {mobileTab === "tasks" ? renderTasksTable() : renderJobsTable()}
             </motion.div>
         </DashboardPage>
     );

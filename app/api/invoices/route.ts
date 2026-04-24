@@ -93,14 +93,15 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
                 supabase,
                 tenantId,
                 data.id,
-                { status: data.status, type: data.type, issue_date: data.issue_date, due_date: data.due_date, reference: data.reference, currency_code: data.currency_code },
+                { status: data.status, type: data.type, issue_date: data.issue_date, due_date: data.due_date, reference: data.reference, currency_code: data.currency_code, gst_inclusive: data.gst_inclusive },
                 data.company_id,
                 processedItems.map((li) => ({
                     description: li.description,
                     quantity: li.quantity,
                     unit_price: li.unit_price,
                     account_code: li.account_code,
-                }))
+                })),
+                data.contact_id
             );
         } catch (err) {
             console.error("Xero sync failed:", err);

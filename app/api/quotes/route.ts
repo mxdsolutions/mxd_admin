@@ -3,6 +3,7 @@ import { withAuth } from "@/app/api/_lib/handler";
 import { parsePagination } from "@/app/api/_lib/pagination";
 import { validationError, serverError } from "@/app/api/_lib/errors";
 import { quoteSchema, quoteUpdateSchema, createQuoteWithItemsSchema } from "@/lib/validation";
+import { pushQuoteToXero } from "@/lib/xero-sync";
 
 export const GET = withAuth(async (request, { supabase, tenantId }) => {
     const { limit, offset, search } = parsePagination(request);
@@ -148,7 +149,40 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
             if (liError) return serverError();
         }
 
-        return NextResponse.json({ item: quote }, { status: 201 });
+        // Push to Xero if connected
+        let xeroWarning: string | undefined;
+        if (quote.company_id) {
+            try {
+                await pushQuoteToXero(
+                    supabase,
+                    tenantId,
+                    quote.id,
+                    {
+                        status: quote.status,
+                        title: quote.title,
+                        description: quote.description,
+                        scope_description: quote.scope_description,
+                        valid_until: quote.valid_until,
+                        gst_inclusive: quote.gst_inclusive,
+                        material_margin: quoteFields.material_margin,
+                        labour_margin: quoteFields.labour_margin,
+                    },
+                    quote.company_id,
+                    allItems.map((li) => ({
+                        description: li.description,
+                        quantity: li.quantity,
+                        material_cost: li.material_cost,
+                        labour_cost: li.labour_cost,
+                    })),
+                    quote.contact_id
+                );
+            } catch (err) {
+                console.error("Xero sync failed:", err);
+                xeroWarning = "Quote created but failed to sync to Xero";
+            }
+        }
+
+        return NextResponse.json({ item: quote, warning: xeroWarning }, { status: 201 });
     }
 
     // Fallback: simple quote creation (no line items)

@@ -3,6 +3,7 @@
 @theme {
   --font-sans: var(--font-plex-sans);
   --font-display: var(--font-antonio);
+  --font-paladins: var(--font-paladins-cond);
 
   --color-background: hsl(0 0% 100%);
   --color-foreground: hsl(0 0% 0%);
