@@ -135,7 +135,7 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
             <aside className="w-[280px] bg-black hidden md:flex flex-col fixed inset-y-0 left-0 z-30">
                 <div className="px-5 pt-5 pb-4 flex flex-col min-w-0">
                     <Link href="/dashboard/overview" className="flex flex-col min-w-0 leading-tight">
-                        <span className="font-paladins text-[34px] xl:text-[40px] tracking-[0.08em] text-white leading-none">THOR</span>
+                        <span className="font-paladins text-[34px] xl:text-[40px] tracking-[0.08em] text-white leading-none">THOR<span className="font-sans text-[0.55em] font-semibold ml-[0.2em] align-super text-white/70">™</span></span>
                         <span className="text-[12px] xl:text-[13px] font-semibold uppercase tracking-[0.18em] text-white/50 mt-1 leading-none">Construction. Amplified.</span>
                     </Link>
                     {tenant && (
@@ -187,7 +187,7 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                             <div className="flex flex-col px-5 pt-5 pb-4 gap-0">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex flex-col min-w-0 leading-tight flex-1">
-                                        <span style={{ fontSize: 40, lineHeight: 1 }} className="font-paladins tracking-[0.08em] text-white">THOR</span>
+                                        <span style={{ fontSize: 40, lineHeight: 1 }} className="font-paladins tracking-[0.08em] text-white">THOR<span className="font-sans text-[0.55em] font-semibold ml-[0.2em] align-super text-white/70">™</span></span>
                                         <span className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/50 mt-1 leading-none">Construction. Amplified.</span>
                                     </div>
                                     <button onClick={() => setMobileMenuOpen(false)} className="shrink-0 p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/60">
@@ -257,18 +257,20 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                         </div>
                     </header>
 
-                    {/* Mobile header */}
-                    <header className="md:hidden h-20 border-b border-border flex items-center px-4 sticky top-0 z-20 bg-background shrink-0">
-                        <div className="w-10">
-                            <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg hover:bg-secondary transition-colors" aria-label="Open menu">
-                                <Bars2Icon className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <div className="flex-1 text-center">
-                            <PageTitle />
-                        </div>
-                        <MobileHeaderActionButton />
-                    </header>
+                    {/* Mobile header — hidden on job detail pages so the detail view spans full height */}
+                    {!pathname.startsWith("/dashboard/jobs/") && (
+                        <header className="md:hidden h-20 border-b border-border flex items-center px-4 sticky top-0 z-20 bg-background shrink-0">
+                            <div className="w-10">
+                                <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg hover:bg-secondary transition-colors" aria-label="Open menu">
+                                    <Bars2Icon className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="flex-1 text-center">
+                                <PageTitle />
+                            </div>
+                            <MobileHeaderActionButton />
+                        </header>
+                    )}
 
                     <div className="relative w-full pt-4 lg:pt-6 min-w-0 flex-1 min-h-0 overflow-y-auto">
                         <ErrorBoundary><RouteGuard>{children}</RouteGuard></ErrorBoundary>

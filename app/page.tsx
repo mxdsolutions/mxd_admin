@@ -82,7 +82,7 @@ function AuthContent() {
         <div className="relative w-full max-w-md space-y-8">
           <div className="absolute left-0 right-0 bottom-full mb-10 flex flex-col items-center cursor-default">
             <span className="font-paladins text-6xl tracking-[0.08em] text-foreground leading-none">
-              THOR
+              THOR<span className="font-sans text-[0.55em] font-semibold ml-[0.2em] align-super">™</span>
             </span>
             <span className="mt-2 text-sm text-muted-foreground tracking-wide">
               Tradie OS: Construction Amplified
@@ -153,7 +153,7 @@ function AuthContent() {
               Manage jobs, projects<br />and contacts.
             </h3>
             <p className="text-lg text-white/60">
-              The THOR admin dashboard lets you oversee your CRM, projects and users so your business runs smoothly.
+              The THOR™ admin dashboard lets you oversee your CRM, projects and users so your business runs smoothly.
             </p>
           </div>
 
