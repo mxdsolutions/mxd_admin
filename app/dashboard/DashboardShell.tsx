@@ -181,7 +181,8 @@ export function DashboardShell({ children, showPlatformAdminLink = false }: { ch
                             animate={{ x: 0 }}
                             exit={{ x: "-100%" }}
                             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-                            className="fixed inset-y-0 left-0 w-72 bg-black z-50 md:hidden flex flex-col shadow-2xl"
+                            style={{ width: "90%" }}
+                            className="fixed inset-y-0 left-0 bg-black z-50 md:hidden flex flex-col shadow-2xl"
                         >
                             <div className="flex flex-col px-5 pt-5 pb-4 gap-0">
                                 <div className="flex items-start justify-between gap-3">
