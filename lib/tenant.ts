@@ -15,8 +15,6 @@ export type TenantBranding = {
     logo_dark_url: string | null;
     report_cover_url: string | null;
     primary_color: string;
-    plan: string;
-    max_users: number;
     status: string;
     custom_domain: string | null;
     domain_verified: boolean;
@@ -71,7 +69,7 @@ export async function getTenantBranding(tenantId: string): Promise<TenantBrandin
     const supabase = await createAdminClient();
     const { data, error } = await supabase
         .from("tenants")
-        .select("id, name, slug, company_name, logo_url, logo_dark_url, report_cover_url, primary_color, plan, max_users, status, custom_domain, domain_verified, address, phone, email, abn, reference_prefix")
+        .select("id, name, slug, company_name, logo_url, logo_dark_url, report_cover_url, primary_color, status, custom_domain, domain_verified, address, phone, email, abn, reference_prefix")
         .eq("id", tenantId)
         .single();
 

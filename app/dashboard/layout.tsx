@@ -33,7 +33,6 @@ export default async function DashboardLayout({
                     logo_dark_url: branding.logo_dark_url,
                     report_cover_url: branding.report_cover_url,
                     primary_color: branding.primary_color,
-                    plan: branding.plan,
                     address: branding.address,
                     phone: branding.phone,
                     email: branding.email,
@@ -42,10 +41,41 @@ export default async function DashboardLayout({
                     role: membership.role,
                     permissions: membership.permissions,
                 };
+            } else {
+                console.error("DashboardLayout: missing tenant data", {
+                    userId: user.id,
+                    tenantId,
+                    hasBranding: !!branding,
+                    hasMembership: !!membership,
+                });
             }
-        } catch {
-            // Tenant context not available — will render with defaults
+        } catch (err) {
+            console.error("DashboardLayout: failed to resolve tenant", {
+                userId: user.id,
+                error: err instanceof Error ? err.message : String(err),
+            });
         }
+    }
+
+    if (user && !tenantData) {
+        return (
+            <div className="min-h-dvh flex items-center justify-center p-6">
+                <div className="max-w-md text-center space-y-4">
+                    <h1 className="text-xl font-display">Workspace unavailable</h1>
+                    <p className="text-sm text-muted-foreground">
+                        We couldn&apos;t load your workspace. This usually means your account
+                        isn&apos;t linked to an active tenant. Try signing out and back in, or
+                        contact support if the problem persists.
+                    </p>
+                    <a
+                        href="/"
+                        className="inline-block text-sm font-medium underline underline-offset-4"
+                    >
+                        Return to sign in
+                    </a>
+                </div>
+            </div>
+        );
     }
 
     return (
