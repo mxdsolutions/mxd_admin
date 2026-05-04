@@ -93,7 +93,7 @@ const tools: Tool[] = [
             let q = supabase
                 .from("jobs")
                 .select(
-                    "id, reference_id, job_title, status, scheduled_start, scheduled_end, amount, company:companies(id, name), contact:contacts(id, first_name, last_name)",
+                    "id, reference_id, job_title, status, scheduled_date, amount, company:companies(id, name), contact:contacts(id, first_name, last_name)",
                     { count: "exact" }
                 )
                 .eq("tenant_id", tenantId)
@@ -167,12 +167,12 @@ const tools: Tool[] = [
             let q = supabase
                 .from("jobs")
                 .select(
-                    "id, reference_id, job_title, status, scheduled_start, scheduled_end, company:companies(id, name)",
+                    "id, reference_id, job_title, status, scheduled_date, company:companies(id, name)",
                     { count: "exact" }
                 )
                 .eq("tenant_id", tenantId)
                 .in("id", ids)
-                .order("scheduled_start", { ascending: true, nullsFirst: false })
+                .order("scheduled_date", { ascending: true, nullsFirst: false })
                 .range(0, limit - 1);
 
             if (status) q = q.eq("status", status);
