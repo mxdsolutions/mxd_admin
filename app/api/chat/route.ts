@@ -118,11 +118,33 @@ export const POST = withAuth(async (request, { supabase, user, tenantId }) => {
                             content: JSON.stringify(result),
                         };
                     } catch (err) {
+                        const e = err instanceof Error ? err : new Error(String(err));
+                        // Tools may JSON-encode structured Postgrest fields
+                        // (message/code/details/hint) into the Error message.
+                        // Parse them back out so they reach Vercel logs and
+                        // the model as proper keys, not an opaque string.
+                        let parsed: Record<string, unknown> | null = null;
+                        try {
+                            const obj = JSON.parse(e.message);
+                            if (obj && typeof obj === "object") {
+                                parsed = obj as Record<string, unknown>;
+                            }
+                        } catch {
+                            /* not JSON — fall through */
+                        }
+                        console.error("tool execution failed", {
+                            tool: use.name,
+                            input: use.input,
+                            message: e.message,
+                            stack: e.stack,
+                            ...(parsed ?? {}),
+                        });
                         return {
                             type: "tool_result",
                             tool_use_id: use.id,
                             content: JSON.stringify({
-                                error: err instanceof Error ? err.message : "Tool failed",
+                                error: e.message,
+                                ...(parsed ?? {}),
                             }),
                             is_error: true,
                         };

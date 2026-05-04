@@ -27,6 +27,22 @@ function getString(input: Record<string, unknown>, key: string): string | undefi
     return typeof v === "string" && v.trim() ? v.trim() : undefined;
 }
 
+// Encode Postgrest error fields (code/details/hint) into the thrown Error
+// message so the chat route can surface them in logs + tool_result content
+// for diagnosis. Plain `error.message` strips `code` etc.
+function pgError(
+    where: string,
+    err: { message: string; code?: string; details?: string | null; hint?: string | null },
+): Error {
+    return new Error(JSON.stringify({
+        where,
+        message: err.message,
+        code: err.code ?? null,
+        details: err.details ?? null,
+        hint: err.hint ?? null,
+    }));
+}
+
 const tools: Tool[] = [
     {
         definition: {
@@ -143,7 +159,7 @@ const tools: Tool[] = [
                 .select("job_id")
                 .eq("user_id", user.id)
                 .eq("tenant_id", tenantId);
-            if (aErr) throw new Error(aErr.message);
+            if (aErr) throw pgError("job_assignees.select", aErr);
 
             const ids = (assignments ?? []).map((a) => a.job_id);
             if (ids.length === 0) return { total: 0, items: [] };
@@ -162,7 +178,7 @@ const tools: Tool[] = [
             if (status) q = q.eq("status", status);
 
             const { data, count, error } = await q;
-            if (error) throw new Error(error.message);
+            if (error) throw pgError("jobs.select", error);
             return { total: count ?? 0, items: data ?? [] };
         },
     },
