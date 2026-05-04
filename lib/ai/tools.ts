@@ -79,7 +79,7 @@ const tools: Tool[] = [
             input_schema: {
                 type: "object",
                 properties: {
-                    status: { type: "string", description: "Filter by status (e.g. 'in_progress', 'completed', 'archived')." },
+                    status: { type: "string", description: "Filter by status. Default values are 'new', 'in_progress', 'completed', 'cancelled'; workspaces can configure additional statuses." },
                     search: { type: "string", description: "Free-text search across job title, description, reference id." },
                     limit: { type: "number", description: `Max items (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT}).` },
                 },
@@ -300,7 +300,7 @@ const tools: Tool[] = [
             input_schema: {
                 type: "object",
                 properties: {
-                    status: { type: "string", description: "Filter by status (e.g. 'draft', 'sent', 'accepted', 'declined')." },
+                    status: { type: "string", enum: ["draft", "sent", "accepted", "rejected", "expired"], description: "Filter by status. One of: 'draft', 'sent', 'accepted', 'rejected', 'expired'." },
                     search: { type: "string", description: "Free-text search across title and description." },
                     job_id: { type: "string", description: "Restrict to quotes for a specific job." },
                     limit: { type: "number", description: `Max items (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT}).` },
@@ -339,7 +339,7 @@ const tools: Tool[] = [
             input_schema: {
                 type: "object",
                 properties: {
-                    status: { type: "string", description: "Filter by status (e.g. 'draft', 'sent', 'paid', 'overdue')." },
+                    status: { type: "string", enum: ["draft", "submitted", "authorised", "paid", "voided"], description: "Filter by status. One of: 'draft', 'submitted', 'authorised', 'paid', 'voided'." },
                     search: { type: "string", description: "Free-text search across invoice_number and reference." },
                     job_id: { type: "string", description: "Restrict to invoices for a specific job." },
                     limit: { type: "number", description: `Max items (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT}).` },
