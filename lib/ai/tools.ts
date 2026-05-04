@@ -316,7 +316,7 @@ const tools: Tool[] = [
             let q = supabase
                 .from("quotes")
                 .select(
-                    "id, reference_id, title, status, total_amount, valid_until, company:companies(id, name), job:jobs(id, job_title)",
+                    "id, title, status, total_amount, valid_until, company:companies(id, name), job:jobs(id, job_title)",
                     { count: "exact" }
                 )
                 .eq("tenant_id", tenantId)
@@ -355,7 +355,7 @@ const tools: Tool[] = [
             let q = supabase
                 .from("invoices")
                 .select(
-                    "id, invoice_number, reference, status, total, due_date, issued_at, company:companies(id, name), job:jobs(id, job_title)",
+                    "id, invoice_number, reference, status, total, due_date, issue_date, company:companies(id, name), job:jobs(id, job_title)",
                     { count: "exact" }
                 )
                 .eq("tenant_id", tenantId)
